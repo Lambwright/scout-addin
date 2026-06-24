@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bid Prequalifier</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; color: #1a1a1a; background: #fff; }
+    .app { padding: 12px; }
+    .nav { display: flex; border-bottom: 1px solid #e0e0e0; margin-bottom: 12px; }
+    .nav-btn { padding: 6px 14px; font-size: 12px; font-weight: 500; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; color: #666; }
+    .nav-btn.active { color: #1a1a1a; border-bottom-color: #1a1a1a; }
+    .section-card { background: #fff; border: 1px solid #e8e8e8; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }
+    .section-score { font-size: 11px; font-weight: 600; color: #1a1a1a; }
+    .field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+    .field label { font-size: 11px; color: #666; }
+    .field input, .field select, .field textarea { width: 100%; font-size: 12px; padding: 5px 7px; border: 1px solid #d0d0d0; border-radius: 4px; background: #fafafa; color: #1a1a1a; font-family: inherit; }
+    .field textarea { resize: vertical; min-height: 50px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .disqualifier-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    .disq-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 8px; border-radius: 4px; border: 1px solid #e8e8e8; cursor: pointer; }
+    .disq-item.triggered { background: #fff5f5; border-color: #fca5a5; }
+    .disq-item input[type=checkbox] { margin-top: 1px; accent-color: #dc2626; width: 13px; height: 13px; flex-shrink: 0; }
+    .disq-item label { font-size: 11px; cursor: pointer; line-height: 1.3; }
+    .score-banner { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; border: 1px solid #e8e8e8; margin-bottom: 8px; background: #f8f8f8; }
+    .score-big { font-size: 28px; font-weight: 600; min-width: 44px; }
+    .tier-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+    .tier-a { background: #dcfce7; color: #166534; }
+    .tier-b { background: #fef9c3; color: #854d0e; }
+    .tier-c { background: #dbeafe; color: #1e40af; }
+    .tier-no { background: #fee2e2; color: #991b1b; }
+    .tier-disq { background: #fee2e2; color: #991b1b; }
+    .rec-text { font-size: 11px; color: #666; flex: 1; }
+    .parse-area { margin-bottom: 8px; }
+    .parse-status { font-size: 11px; color: #666; margin-top: 4px; display: block; }
+    .btn-primary { padding: 7px 16px; background: #1a1a1a; color: #fff; border: none; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; width: 100%; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { padding: 7px 16px; background: none; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; color: #1a1a1a; width: 100%; margin-top: 6px; }
+    .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+    .btn-row .btn-primary, .btn-row .btn-secondary { width: auto; flex: 1; }
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #d0d0d0; border-top-color: #1a1a1a; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .bid-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f8f8f8; border-radius: 4px; border: 1px solid #e8e8e8; margin-bottom: 8px; }
+    .bid-toggle label { font-size: 12px; font-weight: 500; cursor: pointer; }
+    .bid-toggle input[type=checkbox] { width: 14px; height: 14px; accent-color: #16a34a; }
+    .section-scores-row { font-size: 10px; color: #999; text-align: right; }
+    table.bid-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    table.bid-table th { text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; color: #999; padding: 5px 6px; border-bottom: 1px solid #e8e8e8; }
+    table.bid-table td { padding: 6px 6px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .empty-state { text-align: center; padding: 2rem; color: #999; font-size: 12px; }
+    .sub-nav { display: flex; gap: 4px; margin-bottom: 8px; }
+    .sub-nav-btn { padding: 4px 10px; font-size: 11px; background: none; border: 1px solid #d0d0d0; border-radius: 4px; cursor: pointer; color: #666; font-weight: 500; }
+    .sub-nav-btn.active { background: #f0f0f0; color: #1a1a1a; border-color: #999; }
+    .status-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px; }
+    #loading-msg { text-align: center; padding: 2rem; color: #999; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div id="loading-msg">Loading add-in...</div>
+  <div id="main-content" style="display:none">
+    <div class="nav">
+      <button class="nav-btn active" onclick="showTab('intake')">New RFQ</button>
+      <button class="nav-btn" onclick="showTab('board')">Bid board</button>
+    </div>
+
+    <div id="tab-intake">
+      <div class="parse-area">
+        <button class="btn-primary" onclick="parseEmail()" id="parse-btn">Parse this email with Claude</button>
+        <span id="parse-status" class="parse-status"></span>
+      </div>
+
+      <div id="score-banner" class="score-banner">
+        <div class="score-big" id="score-display">—</div>
+        <div style="flex:1">
+          <span class="tier-badge tier-no" id="tier-badge">No score yet</span>
+          <div class="rec-text" id="rec-text" style="margin-top:3px;">Fill in the scoring criteria below</div>
+        </div>
+        <div class="section-scores-row" id="section-scores">—</div>
+      </div>
+
+      <div class="bid-toggle">
+        <input type="checkbox" id="push-to-bid" onchange="updateScore()">
+        <label for="push-to-bid">Push to bid board</label>
+        <span style="font-size:10px;color:#999;margin-left:2px;">Auto at A/B</span>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header"><span class="section-title">Client & project</span></div>
+        <div class="field">
+          <label>Bid requester / client *</label>
+          <input type="text" id="f-client" placeholder="Company name">
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Estimator</label>
+            <select id="f-estimator"><option value="">Select...</option><option>Sunita</option><option>Warren</option><option>Alfonso</option><option>(New)</option></select>
+          </div>
+          <div class="field"><label>Bid received date</label>
+            <input type="date" id="f-date">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>First name</label><input type="text" id="f-fname"></div>
+          <div class="field"><label>Last name</label><input type="text" id="f-lname"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Role</label>
+            <select id="f-role"><option value="">Select...</option><option>Owner/Decision Maker</option><option>Project Manager</option><option>Project Coordinator</option><option>Estimator</option><option>Other/Unknown</option></select>
+          </div>
+          <div class="field"><label>Phone</label><input type="text" id="f-phone"></div>
+        </div>
+        <div class="field"><label>Email</label><input type="text" id="f-email"></div>
+        <div class="field"><label>End user</label><input type="text" id="f-enduser" placeholder="If different from client"></div>
+        <div class="field"><label>Project name</label><input type="text" id="f-projname"></div>
+        <div class="field"><label>Project address</label><input type="text" id="f-projaddr"></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header"><span class="section-title" style="color:#dc2626;">⚠ Automatic disqualifiers</span></div>
+        <div class="disqualifier-grid" id="disq-grid"></div>
+      </div>
+
+      <div id="scoring-sections"></div>
+
+      <div class="section-card">
+        <div class="section-header"><span class="section-title">Notes & decision</span></div>
+        <div class="field"><label>Opportunity notes</label><textarea id="f-notes" rows="3"></textarea></div>
+        <div class="field"><label>Risk flags</label><textarea id="f-risks" rows="2"></textarea></div>
+        <div class="field"><label>Leadership override reason</label><textarea id="f-override" rows="2"></textarea></div>
+        <div class="field"><label>Override approved by</label><input type="text" id="f-approver" placeholder="Name"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" onclick="submitRFQ()" id="submit-btn">Submit</button>
+        <button class="btn-secondary" onclick="clearForm()">Clear</button>
+      </div>
+      <span id="submit-status" class="parse-status"></span>
+    </div>
+
+    <div id="tab-board" style="display:none">
+      <div class="sub-nav">
+        <button class="sub-nav-btn active" onclick="showBoardTab('active')">Active</button>
+        <button class="sub-nav-btn" onclick="showBoardTab('passed')">Passed</button>
+        <button class="sub-nav-btn" onclick="showBoardTab('declined')">Declined</button>
+      </div>
+      <div id="board-active"></div>
+      <div id="board-passed" style="display:none"></div>
+      <div id="board-declined" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PARSE_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/28c6532b40ee45f59d23a8ee78217718/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=t_AMdNtwhFDEFxxteKzIn_FqMWhB-DAgKnn5TLf9-5U';
+const SUBMIT_URL = '';
+
+const DISQUALIFIERS = [
+  '"Blacklisted" client',
+  'Union work',
+  'Bid due in <24 hrs with incomplete drawings',
+  'Project outside all Einbau service regions',
+  'Client has active payment dispute with Einbau',
+  'Scope entirely outside millwork installation'
+];
+
+const CRITERIA = [
+  { id:'client_award_status', label:'Client award status', weight:7, section:1, options:[{label:'Client has won project / confirmed award',score:10},{label:'Estimated chance of GC win >50%',score:5},{label:'Unknown',score:3},{label:'Client has NOT won / multiple bidders',score:1}]},
+  { id:'payment_record', label:'Payment record', weight:5, section:1, options:[{label:'GOOD – No known issues',score:10},{label:'AVERAGE – Minor previous issues',score:5},{label:'New client / Unknown',score:3},{label:'POOR – Major issues / Outstanding',score:1}]},
+  { id:'win_potential', label:'Win potential', weight:5, section:1, options:[{label:'>5 previous bids with no award (1 yr)',score:10},{label:'At least 1 award per 5 bids',score:5},{label:'New client / Unknown',score:3},{label:'Known bid shopper',score:1}]},
+  { id:'relationship_strength', label:'Relationship strength', weight:5, section:1, options:[{label:'Established relationship; regular communication',score:10},{label:'Some prior contact; warm relationship / Referred',score:5},{label:'No relationship / unknown',score:3},{label:'Cold / inbound only',score:1}]},
+  { id:'client_loyalty', label:'Client loyalty', weight:4, section:1, options:[{label:'Regularly awards large projects to Einbau',score:10},{label:'Limited previous awards to Einbau',score:5},{label:'Unknown',score:3},{label:'No previous awards to Einbau',score:1}]},
+  { id:'client_type', label:'Client type', weight:4, section:1, options:[{label:'Luxury brand / partner – value driven',score:10},{label:'Millwork shop – value driven',score:5},{label:'GC / homeowner – neutral',score:3},{label:'Any – purely price driven / multi-bid',score:1}]},
+  { id:'project_type_match', label:'Project type match', weight:7, section:2, options:[{label:'Install millwork only – core scope',score:10},{label:'Supply & install millwork',score:5},{label:'Unknown scope',score:3},{label:'Mostly out of scope / union / no local installer',score:1}]},
+  { id:'sector_alignment', label:'Sector alignment', weight:5, section:2, options:[{label:'Retail rollout / commercial fit – core sector',score:10},{label:'Restaurant / hospitality / high-end residential',score:5},{label:'Industrial / mixed / adjacent sector',score:3},{label:'Out of sector / unclear',score:1}]},
+  { id:'geographic_fit', label:'Geographic fit', weight:5, section:2, options:[{label:'Within core service region',score:10},{label:'Reachable – moderate mobilization',score:5},{label:'Remote / northern – Einbau North scope',score:3},{label:'Out of region – no installer coverage',score:1}]},
+  { id:'scope_clarity', label:'Scope clarity', weight:4, section:2, options:[{label:'Exactly specified – ready to estimate',score:10},{label:'Noted on schedule; identifiable on drawings',score:5},{label:'Requires moderate drawing review (≤10 sheets)',score:3},{label:'Requires extensive review (>10 sheets) / unclear',score:1}]},
+  { id:'timeline_realism', label:'Timeline realism', weight:4, section:2, options:[{label:'Due >5 days – sufficient lead time',score:10},{label:'Due 3–5 days',score:5},{label:'Due 1–3 days',score:3},{label:'Due <24 hrs – unrealistic',score:1}]},
+  { id:'rollout_scale', label:'Rollout / scale', weight:3, section:2, options:[{label:'Multi-location / national rollout',score:10},{label:'Single local – multiple phases',score:5},{label:'Single location – local',score:3},{label:'Single location – remote only',score:1}]},
+  { id:'project_value', label:'Project value', weight:7, section:3, options:[{label:'>$50,000',score:10},{label:'$5,000 – $50,000',score:5},{label:'Unknown',score:3},{label:'<$5,000',score:1}]},
+  { id:'potential_margin', label:'Potential margin', weight:7, section:3, options:[{label:'>40%',score:10},{label:'37% – 40%',score:5},{label:'33% – 37% or unknown',score:3},{label:'<33%',score:1}]},
+  { id:'budget_clarity', label:'Budget clarity', weight:4, section:3, options:[{label:'Budget confirmed / owner-approved',score:10},{label:'Budget range indicated',score:5},{label:'Budget unknown but project is real',score:3},{label:'No budget clarity – speculative',score:1}]},
+  { id:'installer_saturation', label:'Installer saturation', weight:4, section:3, options:[{label:'Client has no ability to self-perform',score:10},{label:'Client can self-perform but typically does not',score:5},{label:'Unknown',score:3},{label:'Client usually self-performs',score:1}]},
+  { id:'estimating_effort', label:'Estimating effort', weight:5, section:4, options:[{label:'Low effort – simple scope, standard package',score:10},{label:'Moderate effort – typical project',score:5},{label:'High effort – complex scope, significant review',score:3},{label:'Very high effort – labour intensive, unclear scope',score:1}]},
+  { id:'crew_availability', label:'Crew availability', weight:5, section:4, options:[{label:'Crew available – no conflicts',score:10},{label:'Crew available with minor scheduling adjustment',score:5},{label:'Crew partially available – requires planning',score:3},{label:'No crew available – conflicts with active projects',score:1}]},
+  { id:'pipeline_conflict', label:'Pipeline conflict', weight:5, section:4, options:[{label:'No conflict with active pipeline',score:10},{label:'Minor overlap – manageable',score:5},{label:'Moderate overlap – requires prioritization',score:3},{label:'Significant conflict – strains operations',score:1}]},
+  { id:'operational_complexity', label:'Operational complexity', weight:5, section:4, options:[{label:'Standard complexity – familiar scope',score:10},{label:'Moderate complexity – some novel elements',score:5},{label:'High complexity – specialized trade / access',score:3},{label:'Extreme complexity – northern / remote / union',score:1}]},
+];
+
+const SECTION_LABELS = {1:'Client / GC qualification',2:'Project fit',3:'Commercial viability',4:'Operational capacity'};
+const SECTION_MAX = {1:30,2:28,3:22,4:20};
+
+let bids = [];
+try { bids = JSON.parse(localStorage.getItem('einbau_bids')||'[]'); } catch(e) {}
+function saveBids(){try{localStorage.setItem('einbau_bids',JSON.stringify(bids));}catch(e){}}
+
+Office.onReady(function(info){
+  document.getElementById('loading-msg').style.display = 'none';
+  document.getElementById('main-content').style.display = 'block';
+  buildDisqualifiers();
+  buildScoringSection();
+  updateScore();
+  renderBoard();
+});
+
+function buildDisqualifiers(){
+  const g=document.getElementById('disq-grid');
+  g.innerHTML=DISQUALIFIERS.map((d,i)=>`
+    <div class="disq-item" id="disq-wrap-${i}" onclick="toggleDisq(${i})">
+      <input type="checkbox" id="disq-${i}" onchange="updateScore()" onclick="event.stopPropagation()">
+      <label for="disq-${i}">${d}</label>
+    </div>`).join('');
+}
+
+function toggleDisq(i){
+  const cb=document.getElementById('disq-'+i);
+  cb.checked=!cb.checked;
+  updateScore();
+}
+
+function buildScoringSection(){
+  const container=document.getElementById('scoring-sections');
+  [1,2,3,4].forEach(sec=>{
+    const criteria=CRITERIA.filter(c=>c.section===sec);
+    const html=`<div class="section-card">
+      <div class="section-header">
+        <span class="section-title">${SECTION_LABELS[sec]}</span>
+        <span class="section-score" id="sec-score-${sec}">0 / ${SECTION_MAX[sec]}</span>
+      </div>
+      ${criteria.map(c=>`
+        <div class="field">
+          <label>${c.label} <span style="color:#bbb">(w:${c.weight})</span></label>
+          <select id="crit-${c.id}" onchange="updateScore()">
+            <option value="">Select...</option>
+            ${c.options.map(o=>`<option value="${o.score}">${o.label}</option>`).join('')}
+          </select>
+        </div>`).join('')}
+    </div>`;
+    container.innerHTML+=html;
+  });
+}
+
+function updateScore(){
+  const disqTriggered=DISQUALIFIERS.some((_,i)=>document.getElementById('disq-'+i)?.checked);
+  DISQUALIFIERS.forEach((_,i)=>{
+    const wrap=document.getElementById('disq-wrap-'+i);
+    if(wrap) wrap.classList.toggle('triggered',document.getElementById('disq-'+i).checked);
+  });
+  const secRaw={1:0,2:0,3:0,4:0};
+  const secMax={1:0,2:0,3:0,4:0};
+  CRITERIA.forEach(c=>{
+    const el=document.getElementById('crit-'+c.id);
+    if(!el) return;
+    const val=parseInt(el.value)||0;
+    secRaw[c.section]+=val*c.weight;
+    secMax[c.section]+=10*c.weight;
+  });
+  const sectionScores=[1,2,3,4].map(s=>{
+    const el=document.getElementById('sec-score-'+s);
+    const scaled=secMax[s]>0?Math.round((secRaw[s]/secMax[s])*SECTION_MAX[s]):0;
+    if(el) el.textContent=scaled+' / '+SECTION_MAX[s];
+    return scaled;
+  });
+  const totalScaled=sectionScores.reduce((a,b)=>a+b,0);
+  const totalMax=Object.values(secMax).reduce((a,b)=>a+b,0);
+  const scoreEl=document.getElementById('score-display');
+  const tierEl=document.getElementById('tier-badge');
+  const recEl=document.getElementById('rec-text');
+  if(disqTriggered){
+    scoreEl.textContent='✕';
+    tierEl.className='tier-badge tier-disq';
+    tierEl.textContent='Disqualified';
+    recEl.textContent='Automatic disqualifier triggered — no bid.';
+    document.getElementById('push-to-bid').checked=false;
+  } else if(totalMax===0){
+    scoreEl.textContent='—';
+    tierEl.className='tier-badge tier-no';
+    tierEl.textContent='No score yet';
+    recEl.textContent='Fill in the scoring criteria below';
+  } else {
+    scoreEl.textContent=totalScaled;
+    let tier,cls,rec;
+    if(totalScaled>=80){tier='Tier A';cls='tier-a';rec='High priority — submit bid.';}
+    else if(totalScaled>=60){tier='Tier B';cls='tier-b';rec='Medium priority — qualify further.';}
+    else if(totalScaled>=40){tier='Tier C';cls='tier-c';rec='Low priority — monitor only.';}
+    else{tier='No bid';cls='tier-no';rec='No bid — decline or defer.';}
+    tierEl.className='tier-badge '+cls;
+    tierEl.textContent=tier;
+    recEl.textContent=rec;
+    const autoPush=totalScaled>=60&&!disqTriggered;
+    const pushCb=document.getElementById('push-to-bid');
+    if(!pushCb._manualSet) pushCb.checked=autoPush;
+  }
+  document.getElementById('section-scores').textContent=sectionScores.map((s,i)=>'S'+(i+1)+':'+s).join(' ');
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  const pushCb = document.getElementById('push-to-bid');
+  if(pushCb){
+    pushCb.addEventListener('change',function(){
+      this._manualSet=true;
+      setTimeout(()=>{this._manualSet=false;},100);
+    });
+  }
+});
+
+async function parseEmail(){
+  const btn=document.getElementById('parse-btn');
+  const status=document.getElementById('parse-status');
+  btn.disabled=true;
+  status.innerHTML='<span class="spinner"></span> Reading email...';
+
+  try{
+    // Read email body directly via Office.js
+    Office.context.mailbox.item.body.getAsync(Office.CoercionType.Text, async function(result){
+      if(result.status === Office.AsyncResultStatus.Failed){
+        status.textContent='Could not read email body.';
+        btn.disabled=false;
+        return;
+      }
+
+      const emailText = result.value;
+      const subject = Office.context.mailbox.item.subject || '';
+      const sender = Office.context.mailbox.item.from ? Office.context.mailbox.item.from.displayName : '';
+      const clientName = document.getElementById('f-client').value.trim();
+
+      status.innerHTML='<span class="spinner"></span> Parsing with Claude...';
+
+      const response = await fetch(PARSE_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          email_text: `Subject: ${subject}\nFrom: ${sender}\n\n${emailText}`,
+          client_name: clientName
+        })
+      });
+
+      const data = await response.json();
+
+      if(data.client) document.getElementById('f-client').value=data.client;
+      if(data.fname) document.getElementById('f-fname').value=data.fname;
+      if(data.lname) document.getElementById('f-lname').value=data.lname;
+      if(data.role) document.getElementById('f-role').value=data.role;
+      if(data.phone) document.getElementById('f-phone').value=data.phone;
+      if(data.email) document.getElementById('f-email').value=data.email;
+      if(data.enduser) document.getElementById('f-enduser').value=data.enduser;
+      if(data.projname) document.getElementById('f-projname').value=data.projname;
+      if(data.projaddr) document.getElementById('f-projaddr').value=data.projaddr;
+      if(data.suggested_notes) document.getElementById('f-notes').value=data.suggested_notes;
+      if(data.suggested_risks) document.getElementById('f-risks').value=data.suggested_risks;
+
+      status.textContent='Parsed — review and adjust before submitting.';
+      btn.disabled=false;
+    });
+  }catch(e){
+    status.textContent='Parse failed — check connection and try again.';
+    console.error(e);
+    btn.disabled=false;
+  }
+}
+
+async function submitRFQ(){
+  const client=document.getElementById('f-client').value.trim();
+  if(!client){alert('Client name is required.');return;}
+  const btn=document.getElementById('submit-btn');
+  const status=document.getElementById('submit-status');
+  btn.disabled=true;
+  status.innerHTML='<span class="spinner"></span> Submitting...';
+
+  const disqTriggered=DISQUALIFIERS.filter((_,i)=>document.getElementById('disq-'+i)?.checked);
+  const scoringValues={};
+  const scoringLabels={};
+  CRITERIA.forEach(c=>{
+    const el=document.getElementById('crit-'+c.id);
+    if(el && el.selectedIndex>0){
+      scoringValues[c.id]=parseInt(el.value)||0;
+      scoringLabels[c.id]=el.options[el.selectedIndex].text;
+    } else {
+      scoringValues[c.id]=0;
+      scoringLabels[c.id]='';
+    }
+  });
+  const sectionScores={};
+  [1,2,3,4].forEach(s=>{
+    const crit=CRITERIA.filter(c=>c.section===s);
+    const raw=crit.reduce((a,c)=>a+(scoringValues[c.id]||0)*c.weight,0);
+    const maxR=crit.reduce((a,c)=>a+10*c.weight,0);
+    sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
+  });
+  const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
+  const tier=disqTriggered.length>0?'No bid':total>=80?'A':total>=60?'B':total>=40?'C':'No bid';
+
+  const payload={
+    client,
+    fname:document.getElementById('f-fname').value,
+    lname:document.getElementById('f-lname').value,
+    role:document.getElementById('f-role').value,
+    phone:document.getElementById('f-phone').value,
+    email:document.getElementById('f-email').value,
+    enduser:document.getElementById('f-enduser').value,
+    projname:document.getElementById('f-projname').value,
+    projaddr:document.getElementById('f-projaddr').value,
+    estimator:document.getElementById('f-estimator').value,
+    bid_date:document.getElementById('f-date').value,
+    disqualifiers:disqTriggered,
+    scoring:scoringValues,
+    scoring_labels:scoringLabels,
+    section_scores:sectionScores,
+    total_score:total,
+    tier,
+    push_to_bid:document.getElementById('push-to-bid').checked,
+    notes:document.getElementById('f-notes').value,
+    risks:document.getElementById('f-risks').value,
+    override:document.getElementById('f-override').value,
+    approver:document.getElementById('f-approver').value,
+    submitted_at:new Date().toISOString()
+  };
+
+  const bid={...payload,id:Date.now(),status:'active'};
+  bids.push(bid);
+  saveBids();
+
+  if(SUBMIT_URL){
+    try{
+      await fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      status.textContent='Submitted successfully.';
+    }catch(e){status.textContent='Saved locally (submit failed).';}
+  } else {
+    status.textContent='Saved locally. Submit URL not configured.';
+  }
+
+  btn.disabled=false;
+  clearForm();
+  renderBoard();
+}
+
+function clearForm(){
+  ['f-client','f-fname','f-lname','f-phone','f-email','f-enduser','f-projname','f-projaddr','f-notes','f-risks','f-override','f-approver'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-estimator','f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('f-date').value='';
+  CRITERIA.forEach(c=>{const el=document.getElementById('crit-'+c.id);if(el)el.value='';});
+  DISQUALIFIERS.forEach((_,i)=>{const cb=document.getElementById('disq-'+i);if(cb)cb.checked=false;const w=document.getElementById('disq-wrap-'+i);if(w)w.classList.remove('triggered');});
+  document.getElementById('push-to-bid').checked=false;
+  document.getElementById('parse-status').textContent='';
+  document.getElementById('submit-status').textContent='';
+  updateScore();
+}
+
+function showTab(tab){
+  document.getElementById('tab-intake').style.display=tab==='intake'?'':'none';
+  document.getElementById('tab-board').style.display=tab==='board'?'':'none';
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',(tab==='intake'&&i===0)||(tab==='board'&&i===1)));
+  if(tab==='board') renderBoard();
+}
+
+function showBoardTab(t){
+  ['active','passed','declined'].forEach(s=>{document.getElementById('board-'+s).style.display=s===t?'':'none';});
+  document.querySelectorAll('.sub-nav-btn').forEach((b,i)=>b.classList.toggle('active',['active','passed','declined'][i]===t));
+}
+
+function tierClass(tier){return{A:'tier-a',B:'tier-b',C:'tier-c','No bid':'tier-no'}[tier]||'tier-no';}
+
+function renderBoard(){
+  ['active','passed','declined'].forEach(status=>{
+    const list=bids.filter(b=>b.status===status);
+    const container=document.getElementById('board-'+status);
+    if(!container) return;
+    if(!list.length){container.innerHTML='<div class="empty-state">No '+status+' bids</div>';return;}
+    container.innerHTML=`<div class="section-card" style="padding:0;overflow:hidden">
+      <table class="bid-table">
+        <thead><tr><th>Client</th><th>Score</th><th>Tier</th><th></th></tr></thead>
+        <tbody>${list.map(b=>`<tr>
+          <td><strong>${b.client||'—'}</strong><br><span style="color:#999;font-size:10px">${b.projname||'—'}</span></td>
+          <td>${b.disqualifiers&&b.disqualifiers.length?'✕':b.total_score}</td>
+          <td><span class="status-badge ${tierClass(b.tier)}">${b.tier}</span></td>
+          <td style="white-space:nowrap">
+            ${status==='active'?`<button onclick="archiveBid(${b.id},'declined')" style="font-size:10px;padding:2px 6px;border:1px solid #fca5a5;border-radius:3px;background:none;cursor:pointer;color:#dc2626">✕</button>`:''}
+            ${status!=='active'?`<button onclick="archiveBid(${b.id},'active')" style="font-size:10px;padding:2px 6px;border:1px solid #d0d0d0;border-radius:3px;background:none;cursor:pointer">↩</button>`:''}
+          </td>
+        </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  });
+}
+
+function archiveBid(id,newStatus){
+  const b=bids.find(b=>b.id===id);
+  if(b){b.status=newStatus;saveBids();renderBoard();}
+}
+</script>
+</body>
+</html>
