@@ -441,14 +441,10 @@ Start with a brief summary of what you found and what's missing.`;
 
   addCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
 
-  fetch('https://api.anthropic.com/v1/messages', {
+  fetch('https://scout.ben-a90.workers.dev', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
-      messages: copilotHistory
-    })
+    body: JSON.stringify({ messages: copilotHistory })
   })
   .then(r => r.json())
   .then(data => {
@@ -475,14 +471,10 @@ async function sendCopilotMessage() {
   addCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://scout.ben-a90.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: copilotHistory
-      })
+      body: JSON.stringify({ messages: copilotHistory })
     });
     const data = await response.json();
     const reply = data.content[0].text;
