@@ -66,11 +66,13 @@
 
     /* Header */
     .header { background: var(--bg-header); padding: 0 24px; display: flex; align-items: center; height: 56px; position: sticky; top: 0; z-index: 200; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .header-logo { height: 28px; filter: brightness(0) invert(1); }
     .header-divider { width: 1px; height: 24px; background: rgba(255,255,255,0.15); margin: 0 16px; }
     .header-badge { display: flex; flex-direction: column; }
     .header-badge-name { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--green); line-height: 1; }
     .header-badge-sub { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 0.06em; margin-top: 2px; }
+    .header-logo-wrap svg { height: 28px; width: auto; }
+    .header-version { margin-left: auto; font-size: 10px; color: rgba(255,255,255,0.25); letter-spacing: 0.06em; font-style: italic; }
+    .header-logo { height: 28px; filter: brightness(0) invert(1); }
 
     /* Layout */
     .container { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
@@ -197,17 +199,53 @@
       .header { padding: 0 16px; }
       .container { padding: 16px 12px; }
     }
+
+    /* Copilot panel */
+    .app-layout { display: flex; gap: 16px; align-items: flex-start; }
+    .form-column { flex: 1; min-width: 0; }
+    .copilot-column { width: 320px; flex-shrink: 0; position: sticky; top: 72px; }
+    .copilot-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; height: calc(100vh - 96px); max-height: 800px; }
+    .copilot-header { padding: 14px 16px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .copilot-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .copilot-title { font-size: 12px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.04em; }
+    .copilot-sub { font-size: 10px; color: var(--text-tertiary); margin-left: auto; }
+    .copilot-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .copilot-msg { max-width: 90%; }
+    .copilot-msg.assistant { align-self: flex-start; }
+    .copilot-msg.user { align-self: flex-end; }
+    .copilot-bubble { padding: 10px 12px; border-radius: 12px; font-size: 12px; line-height: 1.5; }
+    .copilot-msg.assistant .copilot-bubble { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px 12px 12px 12px; }
+    .copilot-msg.user .copilot-bubble { background: var(--green); color: #fff; border-radius: 12px 4px 12px 12px; }
+    .copilot-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; color: var(--text-tertiary); font-size: 12px; gap: 8px; }
+    .copilot-empty-icon { font-size: 28px; opacity: 0.4; }
+    .copilot-input-wrap { padding: 10px; border-top: 1px solid var(--border-color); display: flex; gap: 8px; flex-shrink: 0; }
+    .copilot-input { flex: 1; font-size: 12px; padding: 8px 10px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text-primary); font-family: inherit; resize: none; min-height: 36px; max-height: 100px; line-height: 1.4; transition: border-color 0.15s; }
+    .copilot-input:focus { outline: none; border-color: var(--green); }
+    .copilot-send { padding: 8px 12px; background: var(--green); border: none; border-radius: var(--radius-sm); cursor: pointer; color: #fff; font-size: 13px; transition: background 0.15s; flex-shrink: 0; align-self: flex-end; }
+    .copilot-send:hover { background: var(--green-dark); }
+    .copilot-send:disabled { opacity: 0.4; cursor: not-allowed; }
+    .copilot-typing { display: flex; gap: 4px; padding: 10px 12px; }
+    .copilot-typing span { width: 6px; height: 6px; background: var(--text-tertiary); border-radius: 50%; animation: bounce 1.2s infinite; }
+    .copilot-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .copilot-typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+    @media (max-width: 900px) {
+      .app-layout { flex-direction: column; }
+      .copilot-column { width: 100%; position: static; }
+      .copilot-card { height: 400px; max-height: 400px; }
+    }
   </style>
 </head>
 <body>
 
 <header class="header">
-  <img src="https://lambwright.github.io/scout-addin/logo.jpg" alt="Einbau" class="header-logo">
+  <div class="header-logo-wrap"><svg viewBox="0 0 2048 350" height="28" xmlns="http://www.w3.org/2000/svg"><path transform="translate(892,14)" d="m0 0h271l26 3 15 4 12 5 13 9 8 10 6 12 3 12 1 7v29l-3 16-8 16-7 7-16 8-7 2 21 6 11 6 8 8 7 14 3 11 1 7v35l-4 17-6 12-7 9-8 7-12 6-14 4-14 2-18 1h-281l-1-15z" fill="#97C848"/><path transform="translate(475,14)" d="m0 0h136l10 12 10 13 13 16 10 13 13 16 13 17 14 17 10 13 13 16 22 28 13 16 10 13 13 16 1-206h87v285h-132l-5-2-13-16-11-14-13-16-10-13-13-16-10-13-13-16-13-17-14-17-10-13-13-16-11-14-13-16-5-7-2-1v207h-86l-1-1z" fill="#97C848"/><path transform="translate(18,14)" d="m0 0h311v66l-224 1v44l212 1v59l-212 1v44h229v69h-316z" fill="#97C848"/><path transform="translate(1409,14)" d="m0 0h115l15 28 13 23 14 26 13 23 14 26 10 18 16 29 12 22 15 27 16 29 14 26 3 5v3h-93l-5-3-17-32-8-14-1-1h-176l-6 10-19 38-2 2h-96l1-5 14-26 12-22 26-48 12-22 13-24 14-26 13-23 13-25 13-23 13-25z" fill="#97C848"/><path transform="translate(1671,14)" d="m0 0h87l1 177 4 16 6 10 9 6 9 3 14 2h97l15-2 11-4 8-6 5-8 4-14 1-11 1-169h87v184l-1 19-3 18-6 16-6 11-7 9-9 9-11 7-13 6-18 5-18 3-15 1h-146l-22-2-19-4-19-7-13-8-12-11-7-10-7-14-4-13-3-19z" fill="#97C848"/><path transform="translate(361,14)" d="m0 0h87v284l-1 1h-86z" fill="#97C848"/><path transform="translate(979,186)" d="m0 0h168l11 3 7 6 3 8v12l-4 8-8 5-9 2h-168z" fill="#FEFEFE"/><path transform="translate(980,82)" d="m0 0h159l12 3 6 5 3 8v14l-4 8-8 5-9 2h-159l-1-1v-43z" fill="#FEFEFE"/><path transform="translate(1465,81)" d="m0 0 3 1 14 27 12 22 14 27 12 22 2 4v3h-110l1-5 12-24 10-19 21-41z" fill="#FEFEFE"/><path transform="translate(1164,385)" d="m0 0h9l5 4 2 6v31l-2 7-3 3-3 1h-8l-4-2-3-6v-37l3-5z" fill="#FEFEFE"/><path transform="translate(1940,385)" d="m0 0h9l5 4 1 2v40l-5 5-2 1h-8l-5-3-2-4v-38l4-6z" fill="#FEFEFE"/><path transform="translate(97,385)" d="m0 0h16l5 3 2 3v10l-5 5-3 1h-15z" fill="#FEFEFE"/><path transform="translate(1223,385)" d="m0 0h16l5 3 2 3v9l-3 5-5 2h-14l-1-1z" fill="#FEFEFE"/><path transform="translate(633,385)" d="m0 0h16l6 5 1 8-2 5-3 3-3 1h-15z" fill="#FEFEFE"/><path transform="translate(1610,393)" d="m0 0 2 2 7 23v3h-17l2-10 5-17z" fill="#FEFEFE"/><path transform="translate(43,393)" d="m0 0 2 3 7 25h-18l6-21z" fill="#FEFEFE"/><path transform="translate(705,393)" d="m0 0 3 3 7 23v2h-18z" fill="#FEFEFE"/><path transform="translate(1789,393)" d="m0 0 2 2 7 22v4h-17l3-12z" fill="#FEFEFE"/></svg></div>
   <div class="header-divider"></div>
   <div class="header-badge">
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
+  <div class="header-version">Festive Badger</div>
 </header>
 
 <div class="container">
@@ -218,6 +256,8 @@
     </nav>
   </div>
 
+  <div class="app-layout">
+  <div class="form-column">
   <div class="tab-content">
 
     <!-- INTAKE TAB -->
@@ -327,12 +367,151 @@
     </div>
 
   </div>
-</div>
+</div><!-- form-column -->
+
+  <div class="copilot-column" id="copilot-column">
+    <div class="copilot-card">
+      <div class="copilot-header">
+        <div class="copilot-dot"></div>
+        <span class="copilot-title">SCOUT Copilot</span>
+        <span class="copilot-sub">Powered by Claude</span>
+      </div>
+      <div class="copilot-messages" id="copilot-messages">
+        <div class="copilot-empty" id="copilot-empty">
+          <div class="copilot-empty-icon">🤖</div>
+          <div>Parse an RFQ to activate the copilot</div>
+          <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px;">Claude will review the email and suggest next steps</div>
+        </div>
+      </div>
+      <div class="copilot-input-wrap">
+        <textarea class="copilot-input" id="copilot-input" placeholder="Ask Claude about this RFQ…" rows="1" onkeydown="copilotKeydown(event)"></textarea>
+        <button class="copilot-send" id="copilot-send" onclick="sendCopilotMessage()" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- app-layout -->
 
 <script>
 const PARSE_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/28c6532b40ee45f59d23a8ee78217718/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=t_AMdNtwhFDEFxxteKzIn_FqMWhB-DAgKnn5TLf9-5U';
 const SUBMIT_URL = '';
 const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/947fb47cd76f4ae9a7dd4b0f86851182/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xNC12zksKs9Ny43Wl405qzo15jKPNyRhBPl6zTMjxeM';
+
+
+// Copilot
+let copilotHistory = [];
+let currentRFQContext = '';
+
+function copilotKeydown(e) {
+  if(e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendCopilotMessage();
+  }
+}
+
+function activateCopilot(rfqEmail, parsedData) {
+  currentRFQContext = rfqEmail;
+  document.getElementById('copilot-empty').style.display = 'none';
+  document.getElementById('copilot-send').disabled = false;
+  document.getElementById('copilot-input').disabled = false;
+
+  copilotHistory = [];
+
+  const systemContext = `You are SCOUT, an RFQ qualification copilot for Einbau Services Ltd., a custom architectural millwork installation company in Whitby, Ontario.
+
+The estimating team has just parsed an RFQ email. Here is what was extracted:
+${JSON.stringify(parsedData, null, 2)}
+
+Original email:
+${rfqEmail}
+
+Your role:
+- Review what was extracted and identify any gaps or missing information
+- Suggest specific questions the estimator should ask the client to fill gaps
+- Flag any risks or concerns you notice
+- Help the estimator score the RFQ by asking clarifying questions
+- If the estimator pastes new information, help update the assessment
+- Be concise and practical — these are busy estimators
+
+Start with a brief summary of what you found and what's missing.`;
+
+  copilotHistory.push({ role: 'user', content: systemContext });
+
+  addCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
+
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: copilotHistory
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const reply = data.content[0].text;
+    copilotHistory.push({ role: 'assistant', content: reply });
+    replaceLastCopilotMessage('assistant', reply);
+  })
+  .catch(e => {
+    replaceLastCopilotMessage('assistant', 'Could not connect to Claude. Check your connection.');
+    console.error(e);
+  });
+}
+
+async function sendCopilotMessage() {
+  const input = document.getElementById('copilot-input');
+  const msg = input.value.trim();
+  if(!msg) return;
+  input.value = '';
+
+  addCopilotMessage('user', msg);
+  copilotHistory.push({ role: 'user', content: msg });
+
+  document.getElementById('copilot-send').disabled = true;
+  addCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: copilotHistory
+      })
+    });
+    const data = await response.json();
+    const reply = data.content[0].text;
+    copilotHistory.push({ role: 'assistant', content: reply });
+    replaceLastCopilotMessage('assistant', reply);
+  } catch(e) {
+    replaceLastCopilotMessage('assistant', 'Error — try again.');
+    console.error(e);
+  }
+
+  document.getElementById('copilot-send').disabled = false;
+  input.focus();
+}
+
+function addCopilotMessage(role, html) {
+  const msgs = document.getElementById('copilot-messages');
+  const div = document.createElement('div');
+  div.className = `copilot-msg ${role}`;
+  div.innerHTML = `<div class="copilot-bubble">${html}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function replaceLastCopilotMessage(role, html) {
+  const msgs = document.getElementById('copilot-messages');
+  const last = msgs.querySelector(`.copilot-msg.${role}:last-child`);
+  if(last) last.querySelector('.copilot-bubble').innerHTML = html.replace(/\n/g, '<br>');
+  msgs.scrollTop = msgs.scrollHeight;
+}
 
 // Combobox state
 let allClients = [];
@@ -557,11 +736,20 @@ async function parseRFQ(){
     if(data.suggested_risks) document.getElementById('f-risks').value=data.suggested_risks;
     if(data.bid_received_date) document.getElementById('f-date').value=data.bid_received_date;
     status.textContent='✓ Parsed — review and adjust before submitting.';
+    activateCopilot(email, data);
   }catch(e){
     status.textContent='Parse failed — check connection and try again.';
     console.error(e);
   }
   btn.disabled=false;
+}
+
+function getCopilotSummary(){
+  if(!copilotHistory.length) return '';
+  // Return last assistant message as the summary
+  const assistantMsgs = copilotHistory.filter(m => m.role === 'assistant');
+  if(!assistantMsgs.length) return '';
+  return assistantMsgs[assistantMsgs.length-1].content.substring(0, 500);
 }
 
 async function submitRFQ(){
@@ -599,7 +787,8 @@ async function submitRFQ(){
     push_to_bid:document.getElementById('push-to-bid').checked,
     notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
     override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
-    submitted_at:new Date().toISOString()
+    submitted_at:new Date().toISOString(),
+    copilot_summary: getCopilotSummary()
   };
   const bid={...payload,id:Date.now(),status:'active'};
   bids.push(bid);
@@ -684,6 +873,21 @@ buildDisqualifiers();
 buildScoringSection();
 updateScore();
 setTimeout(loadClients, 300);
+
+// Pre-select estimator from URL parameter e.g. app.html?estimator=Sunita
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const est = params.get('estimator');
+  if(est){
+    const sel = document.getElementById('f-estimator');
+    for(let i=0; i<sel.options.length; i++){
+      if(sel.options[i].value.toLowerCase() === est.toLowerCase()){
+        sel.selectedIndex = i;
+        break;
+      }
+    }
+  }
+})();
 </script>
 </body>
 </html>
