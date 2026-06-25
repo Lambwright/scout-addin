@@ -154,6 +154,8 @@
     .btn-green:hover:not(:disabled) { background: var(--green-dark); box-shadow: 0 2px 8px rgba(143,199,66,0.4); }
     .btn-green:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-ghost { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-input); }
+    .btn-decline { background: none; color: #dc2626; border: 1px solid #fca5a5; }
+    .btn-decline:hover { background: #fff5f5; border-color: #dc2626; }
     .btn-ghost:hover { color: var(--text-primary); border-color: var(--text-tertiary); }
     .btn-danger-outline { background: none; border: 1px solid var(--red-border); color: var(--red); padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
     .btn-success-outline { background: none; border: 1px solid #86efac; color: #16a34a; padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
@@ -245,7 +247,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Mustachio Supremo</div>
+  <div class="header-version">Rogue Chinchilla</div>
 </header>
 
 <div class="container">
@@ -845,6 +847,67 @@ function exportSnippets() {
   a.href = URL.createObjectURL(blob);
   a.download = 'scout_insights.txt';
   a.click();
+}
+
+
+async function declineRFQ(){
+  const client=document.getElementById('f-client').value.trim();
+  if(!client){alert('Client name is required.');return;}
+  const btn=document.getElementById('decline-btn');
+  const status=document.getElementById('submit-status');
+  btn.disabled=true;
+  status.innerHTML='<span class="spinner"></span> Saving decline…';
+
+  const disqTriggered=DISQUALIFIERS.filter((_,i)=>document.getElementById('disq-'+i)?.checked);
+  const scoringValues={};
+  const scoringLabels={};
+  CRITERIA.forEach(c=>{
+    const el=document.getElementById('crit-'+c.id);
+    if(el&&el.selectedIndex>0){scoringValues[c.id]=parseInt(el.value)||0;scoringLabels[c.id]=el.options[el.selectedIndex].text;}
+    else{scoringValues[c.id]=0;scoringLabels[c.id]='';}
+  });
+  const sectionScores={};
+  [1,2,3,4].forEach(s=>{
+    const crit=CRITERIA.filter(c=>c.section===s);
+    const raw=crit.reduce((a,c)=>a+(scoringValues[c.id]||0)*c.weight,0);
+    const maxR=crit.reduce((a,c)=>a+10*c.weight,0);
+    sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
+  });
+  const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
+  const tier=disqTriggered.length>0?'No bid':total>=80?'A':total>=60?'B':total>=40?'C':'No bid';
+
+  const payload={
+    client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
+    role:document.getElementById('f-role').value,phone:document.getElementById('f-phone').value,
+    email:document.getElementById('f-email').value,enduser:document.getElementById('f-enduser').value,
+    projname:document.getElementById('f-projname').value,projaddr:document.getElementById('f-projaddr').value,
+    estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
+    disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
+    section_scores:sectionScores,total_score:total,tier,
+    push_to_bid:false,
+    status:'Declined',
+    notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
+    override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
+    submitted_at:new Date().toISOString(),
+    copilot_summary: getCopilotSummary()
+  };
+
+  const bid={...payload,id:Date.now(),status:'declined'};
+  bids.push(bid);
+  saveBids();
+
+  if(SUBMIT_URL){
+    try{
+      await fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      status.textContent='Declined — saved to log.';
+    }catch(e){status.textContent='Saved locally (submit failed).';}
+  } else {
+    status.textContent='Declined — saved locally.';
+  }
+
+  btn.disabled=false;
+  clearForm();
+  renderBoard();
 }
 
 function getCopilotSummary(){
