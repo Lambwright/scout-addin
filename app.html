@@ -75,7 +75,7 @@
     .header-logo { height: 28px; filter: brightness(0) invert(1); }
 
     /* Layout */
-    .container { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px 16px 48px; }
 
     /* Nav tabs */
     .nav-wrap { background: var(--bg-card); border-radius: var(--radius-lg) var(--radius-lg) 0 0; border: 1px solid var(--border-color); border-bottom: none; margin-bottom: 0; box-shadow: var(--shadow-sm); }
@@ -104,7 +104,7 @@
     }
     .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
     .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--green); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(143,199,66,0.12); }
-    .field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+    .field textarea { resize: vertical; min-height: 72px; line-height: 1.5; overflow-y: hidden; }
     .field-req { color: var(--red); margin-left: 2px; }
 
     /* Combobox */
@@ -201,9 +201,9 @@
     }
 
     /* Copilot panel */
-    .app-layout { display: flex; gap: 16px; align-items: flex-start; }
-    .form-column { flex: 1; min-width: 0; }
-    .copilot-column { width: 320px; flex-shrink: 0; position: sticky; top: 72px; }
+    .app-layout { display: flex; gap: 0; align-items: flex-start; }
+    .form-column { flex: 1; min-width: 0; padding-right: 16px; }
+    .copilot-column { width: 380px; flex-shrink: 0; position: sticky; top: 72px; resize: horizontal; overflow: auto; min-width: 280px; max-width: 600px; }
     .copilot-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; height: calc(100vh - 96px); max-height: 800px; }
     .copilot-header { padding: 14px 16px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .copilot-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
@@ -245,7 +245,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Quantum Raccoon</div>
+  <div class="header-version">Cosmic Ferret</div>
 </header>
 
 <div class="container">
@@ -360,6 +360,7 @@
         <button class="sub-nav-btn active" onclick="showBoardTab('active')">Active</button>
         <button class="sub-nav-btn" onclick="showBoardTab('passed')">Passed</button>
         <button class="sub-nav-btn" onclick="showBoardTab('declined')">Declined</button>
+        <button class="sub-nav-btn" onclick="exportSnippets()" style="margin-left:auto">Export insights</button>
       </div>
       <div id="board-active"></div>
       <div id="board-passed" style="display:none"></div>
@@ -375,6 +376,7 @@
         <div class="copilot-dot"></div>
         <span class="copilot-title">SCOUT Copilot</span>
         <span class="copilot-sub">Powered by Claude</span>
+        <button onclick="saveSnippet()" title="Save insight" style="margin-left:8px;background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:14px;padding:2px 4px;" title="Save conversation insight">💾</button>
       </div>
       <div class="copilot-messages" id="copilot-messages">
         <div class="copilot-empty" id="copilot-empty">
@@ -383,11 +385,21 @@
           <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px;">Claude will review the email and suggest next steps</div>
         </div>
       </div>
-      <div class="copilot-input-wrap">
-        <textarea class="copilot-input" id="copilot-input" placeholder="Ask Claude about this RFQ…" rows="1" onkeydown="copilotKeydown(event)"></textarea>
-        <button class="copilot-send" id="copilot-send" onclick="sendCopilotMessage()" disabled>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </button>
+      <div class="copilot-input-wrap" style="flex-direction:column;gap:6px;">
+        <div style="display:flex;gap:6px;align-items:flex-end;">
+          <textarea class="copilot-input" id="copilot-input" placeholder="Ask Claude about this RFQ…" rows="1" onkeydown="copilotKeydown(event)"></textarea>
+          <button class="copilot-send" id="copilot-send" onclick="sendCopilotMessage()" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label for="copilot-file" style="font-size:11px;color:var(--text-tertiary);cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Attach drawing or doc
+          </label>
+          <input type="file" id="copilot-file" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="handleCopilotFile(this)">
+          <span id="copilot-file-name" style="font-size:11px;color:var(--green);"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -399,6 +411,36 @@ const PARSE_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.
 const SUBMIT_URL = '';
 const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/947fb47cd76f4ae9a7dd4b0f86851182/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xNC12zksKs9Ny43Wl405qzo15jKPNyRhBPl6zTMjxeM';
 
+
+
+// Auto-grow textareas
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+document.addEventListener('input', function(e) {
+  if(e.target.tagName === 'TEXTAREA' && e.target.classList.contains !== undefined) {
+    autoGrow(e.target);
+  }
+});
+
+
+// Copilot file attachment
+let pendingAttachment = null;
+
+function handleCopilotFile(input) {
+  const file = input.files[0];
+  if(!file) return;
+  document.getElementById('copilot-file-name').textContent = file.name;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64 = e.target.result.split(',')[1];
+    const mediaType = file.type || 'application/octet-stream';
+    pendingAttachment = { base64, mediaType, name: file.name };
+  };
+  reader.readAsDataURL(file);
+}
 
 // Copilot
 let copilotHistory = [];
@@ -435,7 +477,33 @@ Your role:
 - If the estimator pastes new information, help update the assessment
 - Be concise and practical — these are busy estimators
 
-Start with a brief summary of what you found and what's missing.`;
+Important context about Einbau Services Ltd.:
+
+OPERATIONS & GEOGRAPHY:
+- Based in Whitby, Ontario. Works across Canada.
+- PRIMARY markets with local management: GTA (Toronto and surroundings), Muskoka, Calgary, Vancouver, and the Maritimes. These are NOT travel concerns — treat as core regions.
+- SECONDARY markets (network coverage, less robust): rest of Alberta, rest of BC, rest of Ontario outside GTA/Muskoka, Quebec, the Prairies, other municipalities. Flag these as moderate mobilization, not out of region.
+- Territories and truly remote locations = out of region.
+- Key Toronto submarkets: Yorkdale Mall, Oakridge Mall, Yorkville, Forest Hill, Rosedale, Hogg's Hollow, Bridle Path. These are premium retail/residential — flag as high-value opportunities.
+
+SCHEDULING & LABOUR:
+- 6am start times are completely standard in the industry — never flag as a concern.
+- Starting AFTER 8am in Toronto is actually a concern due to commuting and parking difficulty.
+- Overtime rates apply for nights and Saturdays. Double time for Sundays and holidays.
+- Einbau does NOT self-perform union work.
+
+SCOPE:
+- Core: architectural millwork installation, supply & install millwork, retail rollouts, commercial fit-outs, high-end residential.
+- Retail rollouts (especially national chains) are high-value opportunities.
+- Fabrication-only scopes (no install) are outside core scope — flag these.
+
+SCORING GUIDANCE:
+- Geographic fit: GTA/Muskoka/Calgary/Vancouver/Maritimes = "Within core service region"
+- Geographic fit: Rest of AB/BC/ON/QC/Prairies = "Reachable – moderate mobilization"
+- Timeline: 6am starts = no concern. After-hours/weekend = note overtime implications, not a disqualifier.
+- Sector: Yorkdale, Oakridge, Yorkville, Forest Hill, Rosedale, Bridle Path = luxury/high-value, score accordingly.
+
+Start with a brief summary of what you found, what fields are missing, and any scoring suggestions based on the above context.`;
 
   copilotHistory.push({ role: 'user', content: systemContext });
 
@@ -464,8 +532,24 @@ async function sendCopilotMessage() {
   if(!msg) return;
   input.value = '';
 
-  addCopilotMessage('user', msg);
-  copilotHistory.push({ role: 'user', content: msg });
+  // Build message content - include attachment if present
+  let userContent;
+  if(pendingAttachment) {
+    userContent = [
+      { type: pendingAttachment.mediaType === 'application/pdf' ? 'document' : 'image',
+        source: { type: 'base64', media_type: pendingAttachment.mediaType, data: pendingAttachment.base64 }
+      },
+      { type: 'text', text: msg || 'Please review this attachment and provide insights relevant to this RFQ.' }
+    ];
+    addCopilotMessage('user', `📎 ${pendingAttachment.name}${msg ? '<br>' + msg : ''}`);
+    pendingAttachment = null;
+    document.getElementById('copilot-file-name').textContent = '';
+    document.getElementById('copilot-file').value = '';
+  } else {
+    userContent = msg;
+    addCopilotMessage('user', msg);
+  }
+  copilotHistory.push({ role: 'user', content: userContent });
 
   document.getElementById('copilot-send').disabled = true;
   addCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
@@ -734,6 +818,33 @@ async function parseRFQ(){
     console.error(e);
   }
   btn.disabled=false;
+}
+
+
+// Save copilot insights
+function saveSnippet() {
+  if(!copilotHistory.length) { alert('No conversation to save yet.'); return; }
+  const snippets = JSON.parse(localStorage.getItem('scout_snippets') || '[]');
+  const summary = copilotHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
+  const client = document.getElementById('f-client').value || 'Unknown';
+  snippets.push({
+    date: new Date().toISOString(),
+    client,
+    insight: summary.substring(0, 800)
+  });
+  localStorage.setItem('scout_snippets', JSON.stringify(snippets));
+  alert(`Insight saved. You have ${snippets.length} saved snippet${snippets.length !== 1 ? 's' : ''}.`);
+}
+
+function exportSnippets() {
+  const snippets = JSON.parse(localStorage.getItem('scout_snippets') || '[]');
+  if(!snippets.length) { alert('No snippets saved yet.'); return; }
+  const text = snippets.map(s => `[${s.date.substring(0,10)}] ${s.client}\n${s.insight}`).join('\n\n---\n\n');
+  const blob = new Blob([text], {type: 'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scout_insights.txt';
+  a.click();
 }
 
 function getCopilotSummary(){
