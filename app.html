@@ -541,7 +541,9 @@ async function parseRFQ(){
   status.innerHTML='<span class="spinner"></span> Parsing…';
   try{
     const response=await fetch(PARSE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email_text:email,client_name:client})});
-    const data=await response.json();
+    const text=await response.text();
+    const clean=text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+    const data=JSON.parse(clean);
     if(data.client) document.getElementById('f-client').value=data.client;
     if(data.fname) document.getElementById('f-fname').value=data.fname;
     if(data.lname) document.getElementById('f-lname').value=data.lname;
@@ -553,6 +555,7 @@ async function parseRFQ(){
     if(data.projaddr) document.getElementById('f-projaddr').value=data.projaddr;
     if(data.suggested_notes) document.getElementById('f-notes').value=data.suggested_notes;
     if(data.suggested_risks) document.getElementById('f-risks').value=data.suggested_risks;
+    if(data.bid_received_date) document.getElementById('f-date').value=data.bid_received_date;
     status.textContent='✓ Parsed — review and adjust before submitting.';
   }catch(e){
     status.textContent='Parse failed — check connection and try again.';
