@@ -6,225 +6,393 @@
   <title>SCOUT — Einbau Bid Prequalifier</title>
   <style>
     :root {
-      --bg-page: #f2f2f2;
-      --bg-card: #ffffff;
-      --bg-input: #fafafa;
-      --bg-header: #2d2d2d;
-      --border: #e0e0e0;
-      --border-input: #d8d8d8;
-      --text-primary: #1a1a1a;
-      --text-secondary: #666;
-      --text-tertiary: #999;
-      --text-header: #ffffff;
       --green: #8FC742;
-      --green-hover: #7ab535;
-      --red: #dc2626;
-      --red-bg: #fff5f5;
-      --red-border: #fca5a5;
+      --green-dark: #7ab535;
+      --green-light: #f0f7e6;
+      --grey-900: #111111;
+      --grey-800: #1e1e1e;
+      --grey-700: #2d2d2d;
+      --grey-600: #3d3d3d;
+      --grey-500: #5a5a5a;
+      --grey-400: #888888;
+      --grey-300: #bbbbbb;
+      --grey-200: #e0e0e0;
+      --grey-100: #f4f4f4;
+      --grey-50: #fafafa;
+      --white: #ffffff;
+      --red: #e53e3e;
+      --red-light: #fff5f5;
+      --red-border: #feb2b2;
+      --amber: #d97706;
+      --blue: #2563eb;
+
+      --bg-page: var(--grey-100);
+      --bg-card: var(--white);
+      --bg-input: var(--grey-50);
+      --bg-header: var(--grey-900);
+      --border-color: var(--grey-200);
+      --border-input: #d4d4d4;
+      --text-primary: #111111;
+      --text-secondary: #555555;
+      --text-tertiary: #999999;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg-page: #1a1a1a;
-        --bg-card: #252525;
-        --bg-input: #2a2a2a;
-        --bg-header: #111111;
-        --border: #3a3a3a;
-        --border-input: #3a3a3a;
+        --bg-page: #141414;
+        --bg-card: #1e1e1e;
+        --bg-input: #252525;
+        --bg-header: #0a0a0a;
+        --border-color: #2e2e2e;
+        --border-input: #333333;
         --text-primary: #f0f0f0;
-        --text-secondary: #aaa;
-        --text-tertiary: #666;
-        --text-header: #ffffff;
-        --red-bg: #2a1515;
+        --text-secondary: #aaaaaa;
+        --text-tertiary: #666666;
+        --red-light: #1a0a0a;
         --red-border: #7f1d1d;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+        --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+        --green-light: #1a2a0a;
       }
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: var(--text-primary); background: var(--bg-page); min-height: 100vh; }
-    .header { background: var(--bg-header); color: var(--text-header); padding: 12px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; }
-    .container { max-width: 900px; margin: 0 auto; padding: 20px 16px; }
-    .nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; background: var(--bg-card); border-radius: 8px 8px 0 0; padding: 0 16px; }
-    .nav-btn { padding: 12px 20px; font-size: 13px; font-weight: 500; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; color: var(--text-secondary); transition: color 0.15s; }
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: var(--text-primary); background: var(--bg-page); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+    /* Header */
+    .header { background: var(--bg-header); padding: 0 24px; display: flex; align-items: center; height: 56px; position: sticky; top: 0; z-index: 200; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .header-logo { height: 28px; filter: brightness(0) invert(1); }
+    .header-divider { width: 1px; height: 24px; background: rgba(255,255,255,0.15); margin: 0 16px; }
+    .header-badge { display: flex; flex-direction: column; }
+    .header-badge-name { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--green); line-height: 1; }
+    .header-badge-sub { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 0.06em; margin-top: 2px; }
+
+    /* Layout */
+    .container { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    /* Nav tabs */
+    .nav-wrap { background: var(--bg-card); border-radius: var(--radius-lg) var(--radius-lg) 0 0; border: 1px solid var(--border-color); border-bottom: none; margin-bottom: 0; box-shadow: var(--shadow-sm); }
+    .nav { display: flex; padding: 0 20px; }
+    .nav-btn { padding: 14px 20px; font-size: 13px; font-weight: 500; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; color: var(--text-tertiary); transition: all 0.15s; letter-spacing: 0.01em; }
     .nav-btn.active { color: var(--text-primary); border-bottom-color: var(--green); }
-    .nav-btn:hover { color: var(--text-primary); }
-    .section-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-    .section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
-    .section-score { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-    .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-    .field { display: flex; flex-direction: column; gap: 4px; }
-    .field label { font-size: 11px; font-weight: 500; color: var(--text-secondary); }
-    .field input, .field select, .field textarea { width: 100%; font-size: 13px; padding: 7px 10px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-family: inherit; transition: border-color 0.15s; }
-    .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--green); background: var(--bg-card); }
-    .field textarea { resize: vertical; min-height: 70px; }
-    .field select option { background: var(--bg-card); color: var(--text-primary); }
-    .disqualifier-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .disq-item { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
-    .disq-item:hover { background: var(--bg-input); }
-    .disq-item.triggered { background: var(--red-bg); border-color: var(--red-border); }
+    .nav-btn:hover:not(.active) { color: var(--text-secondary); }
+    .tab-content { background: var(--bg-page); border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg); padding: 20px; }
+
+    /* Cards */
+    .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 12px; box-shadow: var(--shadow-sm); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-tertiary); }
+    .card-score { font-size: 12px; font-weight: 600; color: var(--text-primary); background: var(--bg-input); padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border-color); }
+
+    /* Fields */
+    .field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.02em; }
+    .field input, .field select, .field textarea {
+      width: 100%; font-size: 13px; padding: 8px 11px;
+      border: 1px solid var(--border-input); border-radius: var(--radius-sm);
+      background: var(--bg-input); color: var(--text-primary);
+      font-family: inherit; transition: all 0.15s;
+      appearance: none; -webkit-appearance: none;
+    }
+    .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+    .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--green); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(143,199,66,0.12); }
+    .field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+    .field-req { color: var(--red); margin-left: 2px; }
+
+    /* Combobox */
+    .combobox-wrap { position: relative; }
+    .combobox-input { width: 100%; font-size: 13px; padding: 8px 11px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text-primary); font-family: inherit; transition: all 0.15s; }
+    .combobox-input:focus { outline: none; border-color: var(--green); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(143,199,66,0.12); }
+    .combobox-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-md); max-height: 240px; overflow-y: auto; z-index: 100; display: none; }
+    .combobox-dropdown.open { display: block; }
+    .combobox-option { padding: 9px 12px; font-size: 13px; cursor: pointer; color: var(--text-primary); transition: background 0.1s; }
+    .combobox-option:hover, .combobox-option.highlighted { background: var(--green-light); color: var(--text-primary); }
+    .combobox-option.selected { font-weight: 600; color: var(--green-dark); }
+    .combobox-empty { padding: 12px; font-size: 12px; color: var(--text-tertiary); text-align: center; }
+    .combobox-loading { padding: 12px; font-size: 12px; color: var(--text-tertiary); text-align: center; }
+
+    /* Score banner */
+    .score-banner { display: flex; align-items: center; gap: 20px; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 12px; background: var(--bg-card); box-shadow: var(--shadow-sm); }
+    .score-num { font-size: 48px; font-weight: 200; min-width: 72px; line-height: 1; letter-spacing: -2px; }
+    .score-divider { width: 1px; height: 48px; background: var(--border-color); flex-shrink: 0; }
+    .score-info { flex: 1; }
+    .tier-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .tier-a { background: #dcfce7; color: #15803d; }
+    .tier-b { background: #fef9c3; color: #92400e; }
+    .tier-c { background: #dbeafe; color: #1d4ed8; }
+    .tier-no { background: #fee2e2; color: #b91c1c; }
+    .tier-disq { background: #fee2e2; color: #b91c1c; }
+    .rec-text { font-size: 12px; color: var(--text-secondary); margin-top: 5px; line-height: 1.4; }
+    .section-scores-display { font-size: 11px; color: var(--text-tertiary); text-align: right; line-height: 1.8; }
+
+    /* Push to bid toggle */
+    .toggle-row { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 12px; box-shadow: var(--shadow-sm); }
+    .toggle-label { font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary); }
+    .toggle-hint { font-size: 11px; color: var(--text-tertiary); margin-left: auto; }
+    input[type=checkbox].toggle { width: 16px; height: 16px; accent-color: var(--green); cursor: pointer; }
+
+    /* Parse area */
+    .parse-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px; margin-bottom: 12px; box-shadow: var(--shadow-sm); }
+    .parse-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.02em; display: block; margin-bottom: 6px; }
+    .parse-textarea { width: 100%; min-height: 130px; font-size: 13px; padding: 11px 13px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text-primary); font-family: inherit; resize: vertical; line-height: 1.5; transition: all 0.15s; }
+    .parse-textarea:focus { outline: none; border-color: var(--green); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(143,199,66,0.12); }
+    .parse-controls { display: flex; align-items: flex-end; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .client-wrap { flex: 1; min-width: 200px; max-width: 320px; }
+    .client-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.02em; display: block; margin-bottom: 5px; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 20px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: none; white-space: nowrap; letter-spacing: 0.01em; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-green:hover:not(:disabled) { background: var(--green-dark); box-shadow: 0 2px 8px rgba(143,199,66,0.4); }
+    .btn-green:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-input); }
+    .btn-ghost:hover { color: var(--text-primary); border-color: var(--text-tertiary); }
+    .btn-danger-outline { background: none; border: 1px solid var(--red-border); color: var(--red); padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .btn-success-outline { background: none; border: 1px solid #86efac; color: #16a34a; padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+
+    /* Status */
+    .status-msg { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border-color); border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Disqualifiers */
+    .disq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .disq-item { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); cursor: pointer; transition: all 0.15s; }
+    .disq-item:hover { border-color: var(--red-border); background: var(--red-light); }
+    .disq-item.triggered { background: var(--red-light); border-color: var(--red-border); }
     .disq-item input[type=checkbox] { margin-top: 1px; accent-color: var(--red); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
     .disq-item label { font-size: 12px; cursor: pointer; line-height: 1.4; color: var(--text-primary); }
-    .score-banner { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px; background: var(--bg-card); }
-    .score-big { font-size: 42px; font-weight: 300; min-width: 64px; color: var(--text-primary); }
-    .score-info { flex: 1; }
-    .tier-badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px; }
-    .tier-a { background: #dcfce7; color: #166534; }
-    .tier-b { background: #fef9c3; color: #854d0e; }
-    .tier-c { background: #dbeafe; color: #1e40af; }
-    .tier-no { background: #fee2e2; color: #991b1b; }
-    .tier-disq { background: #fee2e2; color: #991b1b; }
-    .rec-text { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
-    .section-scores-display { font-size: 11px; color: var(--text-tertiary); text-align: right; }
-    .bid-board-toggle { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px; }
-    .bid-board-toggle label { font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary); }
-    .bid-board-toggle input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--green); cursor: pointer; }
-    .parse-area { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; }
-    .parse-area label { font-size: 11px; font-weight: 500; color: var(--text-secondary); display: block; margin-bottom: 6px; }
-    .parse-area textarea { width: 100%; min-height: 120px; font-size: 13px; padding: 10px 12px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-family: inherit; resize: vertical; }
-    .parse-area textarea:focus { outline: none; border-color: var(--green); background: var(--bg-card); }
-    .parse-controls { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
-    .client-field { flex: 1; max-width: 300px; }
-    .client-field input { width: 100%; font-size: 13px; padding: 7px 10px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text-primary); font-family: inherit; }
-    .client-field input:focus { outline: none; border-color: var(--green); background: var(--bg-card); }
-    .client-field label { font-size: 11px; font-weight: 500; color: var(--text-secondary); display: block; margin-bottom: 4px; }
-    .btn-primary { padding: 8px 20px; background: var(--green); color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
-    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-primary:hover:not(:disabled) { background: var(--green-hover); }
-    .btn-secondary { padding: 8px 20px; background: var(--bg-card); border: 1px solid var(--border-input); border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-primary); transition: border-color 0.15s; }
-    .btn-secondary:hover { border-color: var(--text-secondary); }
-    .btn-danger { padding: 5px 12px; background: none; border: 1px solid var(--red-border); border-radius: 4px; font-size: 11px; cursor: pointer; color: var(--red); }
-    .btn-success { padding: 5px 12px; background: none; border: 1px solid #86efac; border-radius: 4px; font-size: 11px; cursor: pointer; color: #16a34a; }
+    .disq-title { color: var(--red) !important; display: flex; align-items: center; gap: 6px; }
+
+    /* Action row */
     .action-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
-    .status-msg { font-size: 12px; color: var(--text-secondary); }
-    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--text-primary); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    table.bid-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    table.bid-table th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-tertiary); padding: 8px 12px; border-bottom: 1px solid var(--border); }
-    table.bid-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text-primary); }
-    table.bid-table tr:last-child td { border-bottom: none; }
-    table.bid-table tr:hover td { background: var(--bg-input); }
-    .empty-state { text-align: center; padding: 3rem; color: var(--text-tertiary); font-size: 13px; }
-    .sub-nav { display: flex; gap: 6px; margin-bottom: 14px; }
-    .sub-nav-btn { padding: 6px 14px; font-size: 12px; background: var(--bg-card); border: 1px solid var(--border-input); border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-weight: 500; transition: all 0.15s; }
-    .sub-nav-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
     .webhook-note { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
-    .disq-title { color: var(--red) !important; }
-    @media (max-width: 600px) {
-      .disqualifier-grid { grid-template-columns: 1fr; }
-      .field-grid { grid-template-columns: 1fr; }
+
+    /* Bid board */
+    .sub-nav { display: flex; gap: 6px; margin-bottom: 16px; }
+    .sub-nav-btn { padding: 6px 16px; font-size: 12px; font-weight: 600; background: var(--bg-card); border: 1px solid var(--border-input); border-radius: 20px; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; letter-spacing: 0.02em; }
+    .sub-nav-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+    .sub-nav-btn:hover:not(.active) { border-color: var(--text-tertiary); color: var(--text-primary); }
+    .bid-table-wrap { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); }
+    table.bid-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.bid-table th { text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: var(--bg-input); }
+    table.bid-table td { padding: 12px 14px; border-bottom: 1px solid var(--border-color); vertical-align: middle; color: var(--text-primary); }
+    table.bid-table tr:last-child td { border-bottom: none; }
+    table.bid-table tbody tr:hover td { background: var(--bg-input); }
+    .empty-state { text-align: center; padding: 4rem; color: var(--text-tertiary); font-size: 13px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+    .empty-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.4; }
+
+    @media (max-width: 640px) {
+      .disq-grid { grid-template-columns: 1fr; }
+      .field-grid { grid-template-columns: 1fr 1fr; }
       .score-banner { flex-wrap: wrap; }
-      .parse-controls { flex-wrap: wrap; }
+      .parse-controls { flex-direction: column; align-items: stretch; }
+      .client-wrap { max-width: 100%; }
+      .header { padding: 0 16px; }
+      .container { padding: 16px 12px; }
     }
   </style>
 </head>
 <body>
 
-<div class="header">
-  <div>
-    <img src="https://lambwright.github.io/scout-addin/logo.jpg" alt="Einbau" style="height:36px;filter:brightness(0)invert(1)"><div style="margin-left:16px;border-left:1px solid #555;padding-left:16px;"><div style="font-size:13px;font-weight:600;letter-spacing:0.05em;color:#8FC742">SCOUT</div><div style="font-size:11px;color:#aaa">Bid Prequalifier</div></div>
+<header class="header">
+  <img src="https://lambwright.github.io/scout-addin/logo.jpg" alt="Einbau" class="header-logo">
+  <div class="header-divider"></div>
+  <div class="header-badge">
+    <span class="header-badge-name">SCOUT</span>
+    <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-</div>
+</header>
 
 <div class="container">
-  <div class="nav">
-    <button class="nav-btn active" onclick="showTab('intake')">New RFQ intake</button>
-    <button class="nav-btn" onclick="showTab('board')">Bid board</button>
+  <div class="nav-wrap">
+    <nav class="nav">
+      <button class="nav-btn active" onclick="showTab('intake')">New RFQ intake</button>
+      <button class="nav-btn" onclick="showTab('board')">Bid board</button>
+    </nav>
   </div>
 
-  <div id="tab-intake">
+  <div class="tab-content">
 
-    <div class="parse-area">
-      <label>Paste RFQ email content</label>
-      <textarea id="rfq-email" placeholder="Paste the full RFQ email here..."></textarea>
-      <div class="parse-controls">
-        <div class="client-field">
-          <label>Bid requester / client <span style="color:#dc2626">*</span></label>
-          <input type="text" id="f-client" placeholder="Company name">
+    <!-- INTAKE TAB -->
+    <div id="tab-intake">
+
+      <div class="parse-card">
+        <label class="parse-label">Paste RFQ email content</label>
+        <textarea class="parse-textarea" id="rfq-email" placeholder="Paste the full RFQ email here…"></textarea>
+        <div class="parse-controls">
+          <div class="client-wrap">
+            <label class="client-label">Bid requester / client <span class="field-req">*</span></label>
+            <div class="combobox-wrap" id="client-combobox">
+              <input type="text" class="combobox-input" id="f-client" placeholder="Search clients…" autocomplete="off" oninput="filterClients(this.value)" onfocus="openDropdown()" onblur="closeDropdownDelayed()">
+              <div class="combobox-dropdown" id="client-dropdown">
+                <div class="combobox-loading">Loading clients…</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-green" onclick="parseRFQ()" id="parse-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Parse with Claude
+          </button>
+          <span id="parse-status" class="status-msg"></span>
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;padding-top:16px;">
-          <button class="btn-primary" onclick="parseRFQ()" id="parse-btn">Parse with Claude</button>
+      </div>
+
+      <div class="score-banner">
+        <div class="score-num" id="score-display">—</div>
+        <div class="score-divider"></div>
+        <div class="score-info">
+          <span class="tier-badge tier-no" id="tier-badge">No score yet</span>
+          <div class="rec-text" id="rec-text">Fill in the scoring criteria below to generate a recommendation.</div>
         </div>
-        <span id="parse-status" class="status-msg"></span>
+        <div class="section-scores-display" id="section-scores">—</div>
       </div>
-    </div>
 
-    <div class="score-banner">
-      <div class="score-big" id="score-display">—</div>
-      <div class="score-info">
-        <span class="tier-badge tier-no" id="tier-badge">No score yet</span>
-        <div class="rec-text" id="rec-text">Fill in the scoring criteria below</div>
+      <div class="toggle-row">
+        <input type="checkbox" class="toggle" id="push-to-bid" onchange="updateScore()">
+        <label class="toggle-label" for="push-to-bid">Push to bid board</label>
+        <span class="toggle-hint">Auto-checked at Tier A or B — override manually</span>
       </div>
-      <div class="section-scores-display" id="section-scores">—</div>
-    </div>
 
-    <div class="bid-board-toggle">
-      <input type="checkbox" id="push-to-bid" onchange="updateScore()">
-      <label for="push-to-bid">Push to bid board</label>
-      <span style="font-size:11px;color:#999;margin-left:4px;">Auto-checked at tier A or B. Override manually.</span>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header"><span class="section-title">Client contact info</span></div>
-      <div class="field-grid">
-        <div class="field"><label>Estimator</label>
-          <select id="f-estimator"><option value="">Select...</option><option>Sunita</option><option>Warren</option><option>Alfonso</option><option>(New)</option></select>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Client contact info</span></div>
+        <div class="field-grid">
+          <div class="field"><label>Estimator</label>
+            <select id="f-estimator"><option value="">Select…</option><option>Sunita</option><option>Warren</option><option>Alfonso</option><option>(New)</option></select>
+          </div>
+          <div class="field"><label>Bid received date</label><input type="date" id="f-date"></div>
+          <div class="field"><label>First name</label><input type="text" id="f-fname" placeholder=""></div>
+          <div class="field"><label>Last name</label><input type="text" id="f-lname" placeholder=""></div>
+          <div class="field"><label>Role</label>
+            <select id="f-role"><option value="">Select…</option><option>Owner/Decision Maker</option><option>Project Manager</option><option>Project Coordinator</option><option>Estimator</option><option>Other/Unknown</option></select>
+          </div>
+          <div class="field"><label>Phone</label><input type="text" id="f-phone" placeholder=""></div>
+          <div class="field"><label>Email</label><input type="text" id="f-email" placeholder=""></div>
+          <div class="field"><label>End user</label><input type="text" id="f-enduser" placeholder="If different from client"></div>
+          <div class="field"><label>Project name</label><input type="text" id="f-projname" placeholder=""></div>
+          <div class="field" style="grid-column:span 2"><label>Project address</label><input type="text" id="f-projaddr" placeholder=""></div>
         </div>
-        <div class="field"><label>Bid received date</label><input type="date" id="f-date"></div>
-        <div class="field"><label>First name</label><input type="text" id="f-fname"></div>
-        <div class="field"><label>Last name</label><input type="text" id="f-lname"></div>
-        <div class="field"><label>Role</label>
-          <select id="f-role"><option value="">Select...</option><option>Owner/Decision Maker</option><option>Project Manager</option><option>Project Coordinator</option><option>Estimator</option><option>Other/Unknown</option></select>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title disq-title">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Automatic disqualifiers — any checked = no bid
+          </span>
         </div>
-        <div class="field"><label>Phone</label><input type="text" id="f-phone"></div>
-        <div class="field"><label>Email</label><input type="text" id="f-email"></div>
-        <div class="field"><label>End user</label><input type="text" id="f-enduser" placeholder="If different from client"></div>
-        <div class="field"><label>Project name</label><input type="text" id="f-projname"></div>
-        <div class="field" style="grid-column:span 2"><label>Project address</label><input type="text" id="f-projaddr"></div>
+        <div class="disq-grid" id="disq-grid"></div>
       </div>
-    </div>
 
-    <div class="section-card">
-      <div class="section-header">
-        <span class="section-title disq-title">⚠ Automatic disqualifiers — any selection = no bid</span>
+      <div id="scoring-sections"></div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">Notes &amp; decision</span></div>
+        <div class="field-grid" style="grid-template-columns:1fr;">
+          <div class="field"><label>Strategic context / opportunity notes</label><textarea id="f-notes" rows="3"></textarea></div>
+          <div class="field"><label>Risk flags or concerns</label><textarea id="f-risks" rows="2"></textarea></div>
+          <div class="field"><label>Leadership override reason</label><textarea id="f-override" rows="2"></textarea></div>
+          <div class="field"><label>Override approved by</label><input type="text" id="f-approver" placeholder="Name"></div>
+        </div>
       </div>
-      <div class="disqualifier-grid" id="disq-grid"></div>
-    </div>
 
-    <div id="scoring-sections"></div>
-
-    <div class="section-card">
-      <div class="section-header"><span class="section-title">Notes &amp; decision</span></div>
-      <div class="field-grid" style="grid-template-columns:1fr;">
-        <div class="field"><label>Strategic context / opportunity notes</label><textarea id="f-notes" rows="3"></textarea></div>
-        <div class="field"><label>Risk flags or concerns</label><textarea id="f-risks" rows="2"></textarea></div>
-        <div class="field"><label>Leadership override — if any, provide reason</label><textarea id="f-override" rows="2"></textarea></div>
-        <div class="field"><label>Final override approved by</label><input type="text" id="f-approver" placeholder="Name"></div>
+      <div class="action-row">
+        <button class="btn btn-green" onclick="submitRFQ()" id="submit-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Submit to bid board
+        </button>
+        <button class="btn btn-ghost" onclick="clearForm()">Clear form</button>
+        <span id="submit-status" class="status-msg"></span>
       </div>
+      <p class="webhook-note" id="webhook-note">Submit flow not configured — submissions stored locally only.</p>
+
     </div>
 
-    <div class="action-row">
-      <button class="btn-primary" onclick="submitRFQ()" id="submit-btn">Submit to bid board</button>
-      <button class="btn-secondary" onclick="clearForm()">Clear form</button>
-      <span id="submit-status" class="status-msg"></span>
+    <!-- BOARD TAB -->
+    <div id="tab-board" style="display:none">
+      <div class="sub-nav">
+        <button class="sub-nav-btn active" onclick="showBoardTab('active')">Active</button>
+        <button class="sub-nav-btn" onclick="showBoardTab('passed')">Passed</button>
+        <button class="sub-nav-btn" onclick="showBoardTab('declined')">Declined</button>
+      </div>
+      <div id="board-active"></div>
+      <div id="board-passed" style="display:none"></div>
+      <div id="board-declined" style="display:none"></div>
     </div>
-    <p class="webhook-note" id="webhook-note">Submit URL not configured — submissions stored locally only.</p>
 
-  </div>
-
-  <div id="tab-board" style="display:none">
-    <div class="sub-nav">
-      <button class="sub-nav-btn active" onclick="showBoardTab('active')">Active</button>
-      <button class="sub-nav-btn" onclick="showBoardTab('passed')">Passed</button>
-      <button class="sub-nav-btn" onclick="showBoardTab('declined')">Declined</button>
-    </div>
-    <div id="board-active"></div>
-    <div id="board-passed" style="display:none"></div>
-    <div id="board-declined" style="display:none"></div>
   </div>
 </div>
 
 <script>
 const PARSE_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/28c6532b40ee45f59d23a8ee78217718/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=t_AMdNtwhFDEFxxteKzIn_FqMWhB-DAgKnn5TLf9-5U';
 const SUBMIT_URL = '';
+const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/0d4d3474d2ee4059bd612eaf4f9094fc/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=omqX98xZqzT510NLN1sVe8z-F1J-ASvUGvUrFCkHz5M';
+
+// Combobox state
+let allClients = [];
+let selectedClient = '';
+
+async function loadClients() {
+  try {
+    const res = await fetch(GET_CLIENTS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const data = await res.json();
+    allClients = [...new Set(data.map(r => r['Name']).filter(Boolean))].sort();
+    renderDropdown(allClients);
+  } catch(e) {
+    document.getElementById('client-dropdown').innerHTML = '<div class="combobox-empty">Could not load — type a name manually</div>';
+    console.error('loadClients:', e);
+  }
+}
+
+function renderDropdown(clients) {
+  const dd = document.getElementById('client-dropdown');
+  if (!clients.length) {
+    dd.innerHTML = '<div class="combobox-empty">No matches</div>';
+    return;
+  }
+  dd.innerHTML = clients.slice(0, 80).map(n =>
+    `<div class="combobox-option${n === selectedClient ? ' selected' : ''}" onmousedown="selectClient('${n.replace(/'/g, "\\'")}')">${n}</div>`
+  ).join('');
+  if (clients.length > 80) {
+    dd.innerHTML += `<div class="combobox-empty">+ ${clients.length - 80} more — keep typing to narrow</div>`;
+  }
+}
+
+function filterClients(val) {
+  const filtered = val ? allClients.filter(n => n.toLowerCase().includes(val.toLowerCase())) : allClients;
+  renderDropdown(filtered);
+  openDropdown();
+}
+
+function selectClient(name) {
+  selectedClient = name;
+  document.getElementById('f-client').value = name;
+  closeDropdown();
+}
+
+function openDropdown() {
+  if (allClients.length) renderDropdown(filterClients_filtered());
+  document.getElementById('client-dropdown').classList.add('open');
+}
+
+function filterClients_filtered() {
+  const val = document.getElementById('f-client').value;
+  return val ? allClients.filter(n => n.toLowerCase().includes(val.toLowerCase())) : allClients;
+}
+
+function closeDropdown() {
+  document.getElementById('client-dropdown').classList.remove('open');
+}
+
+function closeDropdownDelayed() {
+  setTimeout(closeDropdown, 150);
+}
 
 const DISQUALIFIERS = [
   '"Blacklisted" client',
@@ -284,17 +452,17 @@ function buildScoringSection(){
   const container=document.getElementById('scoring-sections');
   [1,2,3,4].forEach(sec=>{
     const criteria=CRITERIA.filter(c=>c.section===sec);
-    const html=`<div class="section-card">
-      <div class="section-header">
-        <span class="section-title">${SECTION_LABELS[sec]}</span>
-        <span class="section-score" id="sec-score-${sec}">0 / ${SECTION_MAX[sec]}</span>
+    const html=`<div class="card">
+      <div class="card-header">
+        <span class="card-title">${SECTION_LABELS[sec]}</span>
+        <span class="card-score" id="sec-score-${sec}">0 / ${SECTION_MAX[sec]}</span>
       </div>
       <div class="field-grid">
         ${criteria.map(c=>`
           <div class="field">
-            <label>${c.label} <span style="color:#bbb;font-weight:400">(w:${c.weight})</span></label>
+            <label>${c.label} <span style="color:var(--text-tertiary);font-weight:400">(w:${c.weight})</span></label>
             <select id="crit-${c.id}" onchange="updateScore()">
-              <option value="">Select...</option>
+              <option value="">Select…</option>
               ${c.options.map(o=>`<option value="${o.score}">${o.label}</option>`).join('')}
             </select>
           </div>`).join('')}
@@ -310,45 +478,40 @@ function updateScore(){
     const wrap=document.getElementById('disq-wrap-'+i);
     if(wrap) wrap.classList.toggle('triggered',document.getElementById('disq-'+i).checked);
   });
-
   const secRaw={1:0,2:0,3:0,4:0};
   const secMax={1:0,2:0,3:0,4:0};
   CRITERIA.forEach(c=>{
     const el=document.getElementById('crit-'+c.id);
     if(!el) return;
-    const val=parseInt(el.value)||0;
-    secRaw[c.section]+=val*c.weight;
+    secRaw[c.section]+=(parseInt(el.value)||0)*c.weight;
     secMax[c.section]+=10*c.weight;
   });
-
   const sectionScores=[1,2,3,4].map(s=>{
     const el=document.getElementById('sec-score-'+s);
     const scaled=secMax[s]>0?Math.round((secRaw[s]/secMax[s])*SECTION_MAX[s]):0;
     if(el) el.textContent=scaled+' / '+SECTION_MAX[s];
     return scaled;
   });
-
   const totalMax=Object.values(secMax).reduce((a,b)=>a+b,0);
   const totalScaled=sectionScores.reduce((a,b)=>a+b,0);
   const scoreEl=document.getElementById('score-display');
   const tierEl=document.getElementById('tier-badge');
   const recEl=document.getElementById('rec-text');
-
   if(disqTriggered){
     scoreEl.textContent='✕';
     tierEl.className='tier-badge tier-disq';
     tierEl.textContent='Disqualified';
-    recEl.textContent='Automatic disqualifier triggered — no bid.';
+    recEl.textContent='One or more automatic disqualifiers triggered — no bid.';
     document.getElementById('push-to-bid').checked=false;
   } else if(totalMax===0){
     scoreEl.textContent='—';
     tierEl.className='tier-badge tier-no';
     tierEl.textContent='No score yet';
-    recEl.textContent='Fill in the scoring criteria below';
+    recEl.textContent='Fill in the scoring criteria below to generate a recommendation.';
   } else {
     scoreEl.textContent=totalScaled;
     let tier,cls,rec;
-    if(totalScaled>=80){tier='Tier A';cls='tier-a';rec='High priority — submit bid. Assign estimator. Flag for leadership.';}
+    if(totalScaled>=80){tier='Tier A';cls='tier-a';rec='High priority — submit bid. Assign estimator and flag for leadership.';}
     else if(totalScaled>=60){tier='Tier B';cls='tier-b';rec='Medium priority — qualify further before committing estimating resources.';}
     else if(totalScaled>=40){tier='Tier C';cls='tier-c';rec='Low priority — monitor only. Do not assign estimating without leadership review.';}
     else{tier='No bid';cls='tier-no';rec='No bid — decline or defer. Do not assign estimating resources.';}
@@ -359,8 +522,7 @@ function updateScore(){
     const pushCb=document.getElementById('push-to-bid');
     if(!pushCb._manualSet) pushCb.checked=autoPush;
   }
-
-  document.getElementById('section-scores').textContent=sectionScores.map((s,i)=>'S'+(i+1)+':'+s).join('  ');
+  document.getElementById('section-scores').innerHTML=sectionScores.map((s,i)=>`S${i+1}: <strong>${s}</strong>`).join('<br>');
 }
 
 document.getElementById('push-to-bid').addEventListener('change',function(){
@@ -372,22 +534,14 @@ async function parseRFQ(){
   const email=document.getElementById('rfq-email').value.trim();
   if(!email){alert('Paste an RFQ email first.');return;}
   const client=document.getElementById('f-client').value.trim();
-  if(!client){alert('Enter a client name before parsing.');return;}
-
+  if(!client){alert('Enter or select a client before parsing.');return;}
   const btn=document.getElementById('parse-btn');
   const status=document.getElementById('parse-status');
   btn.disabled=true;
-  status.innerHTML='<span class="spinner"></span> Parsing...';
-
+  status.innerHTML='<span class="spinner"></span> Parsing…';
   try{
-    const response=await fetch(PARSE_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email_text:email,client_name:client})
-    });
-
+    const response=await fetch(PARSE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email_text:email,client_name:client})});
     const data=await response.json();
-
     if(data.client) document.getElementById('f-client').value=data.client;
     if(data.fname) document.getElementById('f-fname').value=data.fname;
     if(data.lname) document.getElementById('f-lname').value=data.lname;
@@ -399,13 +553,11 @@ async function parseRFQ(){
     if(data.projaddr) document.getElementById('f-projaddr').value=data.projaddr;
     if(data.suggested_notes) document.getElementById('f-notes').value=data.suggested_notes;
     if(data.suggested_risks) document.getElementById('f-risks').value=data.suggested_risks;
-
-    status.textContent='Parsed — review and adjust before submitting.';
+    status.textContent='✓ Parsed — review and adjust before submitting.';
   }catch(e){
     status.textContent='Parse failed — check connection and try again.';
     console.error(e);
   }
-
   btn.disabled=false;
 }
 
@@ -415,22 +567,15 @@ async function submitRFQ(){
   const btn=document.getElementById('submit-btn');
   const status=document.getElementById('submit-status');
   btn.disabled=true;
-  status.innerHTML='<span class="spinner"></span> Submitting...';
-
+  status.innerHTML='<span class="spinner"></span> Submitting…';
   const disqTriggered=DISQUALIFIERS.filter((_,i)=>document.getElementById('disq-'+i)?.checked);
   const scoringValues={};
   const scoringLabels={};
   CRITERIA.forEach(c=>{
     const el=document.getElementById('crit-'+c.id);
-    if(el && el.selectedIndex>0){
-      scoringValues[c.id]=parseInt(el.value)||0;
-      scoringLabels[c.id]=el.options[el.selectedIndex].text;
-    } else {
-      scoringValues[c.id]=0;
-      scoringLabels[c.id]='';
-    }
+    if(el&&el.selectedIndex>0){scoringValues[c.id]=parseInt(el.value)||0;scoringLabels[c.id]=el.options[el.selectedIndex].text;}
+    else{scoringValues[c.id]=0;scoringLabels[c.id]='';}
   });
-
   const sectionScores={};
   [1,2,3,4].forEach(s=>{
     const crit=CRITERIA.filter(c=>c.section===s);
@@ -440,54 +585,37 @@ async function submitRFQ(){
   });
   const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
   const tier=disqTriggered.length>0?'No bid':total>=80?'A':total>=60?'B':total>=40?'C':'No bid';
-
   const payload={
-    client,
-    fname:document.getElementById('f-fname').value,
-    lname:document.getElementById('f-lname').value,
-    role:document.getElementById('f-role').value,
-    phone:document.getElementById('f-phone').value,
-    email:document.getElementById('f-email').value,
-    enduser:document.getElementById('f-enduser').value,
-    projname:document.getElementById('f-projname').value,
-    projaddr:document.getElementById('f-projaddr').value,
-    estimator:document.getElementById('f-estimator').value,
-    bid_date:document.getElementById('f-date').value,
-    disqualifiers:disqTriggered,
-    scoring:scoringValues,
-    scoring_labels:scoringLabels,
-    section_scores:sectionScores,
-    total_score:total,
-    tier,
+    client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
+    role:document.getElementById('f-role').value,phone:document.getElementById('f-phone').value,
+    email:document.getElementById('f-email').value,enduser:document.getElementById('f-enduser').value,
+    projname:document.getElementById('f-projname').value,projaddr:document.getElementById('f-projaddr').value,
+    estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
+    disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
+    section_scores:sectionScores,total_score:total,tier,
     push_to_bid:document.getElementById('push-to-bid').checked,
-    notes:document.getElementById('f-notes').value,
-    risks:document.getElementById('f-risks').value,
-    override:document.getElementById('f-override').value,
-    approver:document.getElementById('f-approver').value,
+    notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
+    override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
     submitted_at:new Date().toISOString()
   };
-
   const bid={...payload,id:Date.now(),status:'active'};
   bids.push(bid);
   saveBids();
-
   if(SUBMIT_URL){
-    try{
-      await fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      status.textContent='Submitted successfully.';
-      document.getElementById('webhook-note').style.display='none';
-    }catch(e){status.textContent='Saved locally (submit failed).';}
+    try{await fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});status.textContent='✓ Submitted successfully.';}
+    catch(e){status.textContent='Saved locally (submit failed).';}
   } else {
-    status.textContent='Saved locally. Submit URL not configured yet.';
+    status.textContent='Saved locally — submit flow not configured yet.';
   }
-
   btn.disabled=false;
   clearForm();
   renderBoard();
 }
 
 function clearForm(){
-  ['f-client','f-fname','f-lname','f-phone','f-email','f-enduser','f-projname','f-projaddr','f-notes','f-risks','f-override','f-approver'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-fname','f-lname','f-phone','f-email','f-enduser','f-projname','f-projaddr','f-notes','f-risks','f-override','f-approver'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('f-client').value='';
+  selectedClient='';
   ['f-estimator','f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-date').value='';
   CRITERIA.forEach(c=>{const el=document.getElementById('crit-'+c.id);if(el)el.value='';});
@@ -518,23 +646,24 @@ function renderBoard(){
     const list=bids.filter(b=>b.status===status);
     const container=document.getElementById('board-'+status);
     if(!container) return;
-    if(!list.length){container.innerHTML='<div class="empty-state">No '+status+' bids</div>';return;}
-    container.innerHTML=`<div class="section-card" style="padding:0;overflow:hidden">
+    if(!list.length){
+      container.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div>No ${status} bids yet</div>`;
+      return;
+    }
+    container.innerHTML=`<div class="bid-table-wrap">
       <table class="bid-table">
-        <thead><tr>
-          <th>Project</th><th>Client</th><th>Estimator</th><th>Score</th><th>Tier</th><th>Date</th><th>Push</th><th></th>
-        </tr></thead>
+        <thead><tr><th>Project</th><th>Client</th><th>Estimator</th><th>Score</th><th>Tier</th><th>Date</th><th>Push</th><th></th></tr></thead>
         <tbody>${list.map(b=>`<tr>
-          <td style="font-weight:500">${b.projname||'—'}</td>
+          <td style="font-weight:600">${b.projname||'—'}</td>
           <td>${b.client||'—'}</td>
           <td>${b.estimator||'—'}</td>
-          <td style="font-weight:600">${b.disqualifiers&&b.disqualifiers.length?'✕':b.total_score}</td>
-          <td><span class="tier-badge ${tierClass(b.tier)}" style="font-size:11px;padding:2px 8px">${b.tier}</span></td>
-          <td style="color:#999">${b.bid_date||'—'}</td>
-          <td>${b.push_to_bid?'✓':'—'}</td>
-          <td style="white-space:nowrap">
-            ${status==='active'?`<button class="btn-success" onclick="archiveBid(${b.id},'passed')" style="margin-right:4px">Pass</button><button class="btn-danger" onclick="archiveBid(${b.id},'declined')">Decline</button>`:''}
-            ${status!=='active'?`<button class="btn-secondary" style="font-size:11px;padding:4px 10px" onclick="archiveBid(${b.id},'active')">Restore</button>`:''}
+          <td style="font-weight:700;font-size:15px">${b.disqualifiers&&b.disqualifiers.length?'<span style="color:var(--red)">✕</span>':b.total_score}</td>
+          <td><span class="tier-badge ${tierClass(b.tier)}" style="font-size:10px">${b.tier}</span></td>
+          <td style="color:var(--text-tertiary);font-size:12px">${b.bid_date||'—'}</td>
+          <td style="color:var(--green)">${b.push_to_bid?'✓':'—'}</td>
+          <td style="white-space:nowrap;display:flex;gap:6px;padding:12px 14px">
+            ${status==='active'?`<button class="btn-success-outline" onclick="archiveBid(${b.id},'passed')">Pass</button><button class="btn-danger-outline" onclick="archiveBid(${b.id},'declined')">Decline</button>`:''}
+            ${status!=='active'?`<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="archiveBid(${b.id},'active')">Restore</button>`:''}
           </td>
         </tr>`).join('')}
         </tbody>
@@ -551,6 +680,7 @@ function archiveBid(id,newStatus){
 buildDisqualifiers();
 buildScoringSection();
 updateScore();
+setTimeout(loadClients, 300);
 </script>
 </body>
 </html>
