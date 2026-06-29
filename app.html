@@ -247,7 +247,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Sleek Pangolin</div>
+  <div class="header-version">Vivid Salamander</div>
 </header>
 
 <div class="container">
@@ -358,6 +358,40 @@
       <p class="webhook-note" id="webhook-note">Submit flow not configured — submissions stored locally only.</p>
 
     </div>
+
+  <div class="copilot-column" id="copilot-column">
+    <div class="copilot-card">
+      <div class="copilot-header">
+        <div class="copilot-dot"></div>
+        <span class="copilot-title">SCOUT Copilot</span>
+        <span class="copilot-sub">Powered by Claude</span>
+        <button onclick="saveSnippet()" title="Save insight" style="margin-left:8px;background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:14px;padding:2px 4px;">💾</button>
+      </div>
+      <div class="copilot-messages" id="copilot-messages">
+        <div class="copilot-empty" id="copilot-empty">
+          <div class="copilot-empty-icon" id="copilot-icon">🤖</div>
+          <div>Parse an RFQ to activate the copilot</div>
+          <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px;">Claude will review the email and suggest next steps</div>
+        </div>
+      </div>
+      <div class="copilot-input-wrap" style="flex-direction:column;gap:6px;">
+        <div style="display:flex;gap:6px;align-items:flex-end;">
+          <textarea class="copilot-input" id="copilot-input" placeholder="Ask Claude about this RFQ…" rows="1" onkeydown="copilotKeydown(event)"></textarea>
+          <button class="copilot-send" id="copilot-send" onclick="sendCopilotMessage()" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label for="copilot-file" style="font-size:11px;color:var(--text-tertiary);cursor:pointer;display:flex;align-items:center;gap:4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Attach drawing or doc
+          </label>
+          <input type="file" id="copilot-file" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="handleCopilotFile(this)">
+          <span id="copilot-file-name" style="font-size:11px;color:var(--green);"></span>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </div><!-- app-layout -->
 
