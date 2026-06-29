@@ -70,9 +70,9 @@
     .header-badge { display: flex; flex-direction: column; }
     .header-badge-name { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--green); line-height: 1; }
     .header-badge-sub { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 0.06em; margin-top: 2px; }
-    .header-logo-wrap svg { height: 28px; width: auto; }
+
     .header-version { margin-left: auto; font-size: 10px; color: rgba(255,255,255,0.25); letter-spacing: 0.06em; font-style: italic; }
-    .header-logo { height: 28px; filter: brightness(0) invert(1); }
+    .header-logo { height: 32px; }
 
     /* Layout */
     .container { max-width: 1400px; margin: 0 auto; padding: 24px 16px 48px; }
@@ -241,20 +241,19 @@
 <body>
 
 <header class="header">
-  <div class="header-logo-wrap"><svg viewBox="0 0 2048 350" height="28" xmlns="http://www.w3.org/2000/svg"><path transform="translate(892,14)" d="m0 0h271l26 3 15 4 12 5 13 9 8 10 6 12 3 12 1 7v29l-3 16-8 16-7 7-16 8-7 2 21 6 11 6 8 8 7 14 3 11 1 7v35l-4 17-6 12-7 9-8 7-12 6-14 4-14 2-18 1h-281l-1-15z" fill="#97C848"/><path transform="translate(475,14)" d="m0 0h136l10 12 10 13 13 16 10 13 13 16 13 17 14 17 10 13 13 16 22 28 13 16 10 13 13 16 1-206h87v285h-132l-5-2-13-16-11-14-13-16-10-13-13-16-10-13-13-16-13-17-14-17-10-13-13-16-11-14-13-16-5-7-2-1v207h-86l-1-1z" fill="#97C848"/><path transform="translate(18,14)" d="m0 0h311v66l-224 1v44l212 1v59l-212 1v44h229v69h-316z" fill="#97C848"/><path transform="translate(1409,14)" d="m0 0h115l15 28 13 23 14 26 13 23 14 26 10 18 16 29 12 22 15 27 16 29 14 26 3 5v3h-93l-5-3-17-32-8-14-1-1h-176l-6 10-19 38-2 2h-96l1-5 14-26 12-22 26-48 12-22 13-24 14-26 13-23 13-25 13-23 13-25z" fill="#97C848"/><path transform="translate(1671,14)" d="m0 0h87l1 177 4 16 6 10 9 6 9 3 14 2h97l15-2 11-4 8-6 5-8 4-14 1-11 1-169h87v184l-1 19-3 18-6 16-6 11-7 9-9 9-11 7-13 6-18 5-18 3-15 1h-146l-22-2-19-4-19-7-13-8-12-11-7-10-7-14-4-13-3-19z" fill="#97C848"/><path transform="translate(361,14)" d="m0 0h87v284l-1 1h-86z" fill="#97C848"/><path transform="translate(979,186)" d="m0 0h168l11 3 7 6 3 8v12l-4 8-8 5-9 2h-168z" fill="transparent"/><path transform="translate(980,82)" d="m0 0h159l12 3 6 5 3 8v14l-4 8-8 5-9 2h-159l-1-1v-43z" fill="transparent"/><path transform="translate(1465,81)" d="m0 0 3 1 14 27 12 22 14 27 12 22 2 4v3h-110l1-5 12-24 10-19 21-41z" fill="transparent"/><path transform="translate(1164,385)" d="m0 0h9l5 4 2 6v31l-2 7-3 3-3 1h-8l-4-2-3-6v-37l3-5z" fill="transparent"/><path transform="translate(1940,385)" d="m0 0h9l5 4 1 2v40l-5 5-2 1h-8l-5-3-2-4v-38l4-6z" fill="transparent"/><path transform="translate(97,385)" d="m0 0h16l5 3 2 3v10l-5 5-3 1h-15z" fill="transparent"/><path transform="translate(1223,385)" d="m0 0h16l5 3 2 3v9l-3 5-5 2h-14l-1-1z" fill="transparent"/><path transform="translate(633,385)" d="m0 0h16l6 5 1 8-2 5-3 3-3 1h-15z" fill="transparent"/><path transform="translate(1610,393)" d="m0 0 2 2 7 23v3h-17l2-10 5-17z" fill="transparent"/><path transform="translate(43,393)" d="m0 0 2 3 7 25h-18l6-21z" fill="transparent"/><path transform="translate(705,393)" d="m0 0 3 3 7 23v2h-18z" fill="transparent"/><path transform="translate(1789,393)" d="m0 0 2 2 7 22v4h-17l3-12z" fill="transparent"/></svg></div>
+  <img src="https://lambwright.github.io/scout-addin/logo.png" alt="Einbau" class="header-logo">
   <div class="header-divider"></div>
   <div class="header-badge">
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Brazen Narwhal</div>
+  <div class="header-version">Sleek Pangolin</div>
 </header>
 
 <div class="container">
   <div class="nav-wrap">
     <nav class="nav">
       <button class="nav-btn active" onclick="showTab('intake')">New RFQ intake</button>
-      <button class="nav-btn" onclick="showTab('board')">Bid board</button>
     </nav>
   </div>
 
@@ -359,56 +358,6 @@
       <p class="webhook-note" id="webhook-note">Submit flow not configured — submissions stored locally only.</p>
 
     </div>
-
-    <!-- BOARD TAB -->
-    <div id="tab-board" style="display:none">
-      <div class="sub-nav">
-        <button class="sub-nav-btn active" onclick="showBoardTab('active')">Active</button>
-        <button class="sub-nav-btn" onclick="showBoardTab('passed')">Passed</button>
-        <button class="sub-nav-btn" onclick="showBoardTab('declined')">Declined</button>
-        <button class="sub-nav-btn" onclick="exportSnippets()" style="margin-left:auto">Export insights</button>
-      </div>
-      <div id="board-active"></div>
-      <div id="board-passed" style="display:none"></div>
-      <div id="board-declined" style="display:none"></div>
-    </div>
-
-  </div>
-</div><!-- form-column -->
-
-  <div class="copilot-column" id="copilot-column">
-    <div class="copilot-card">
-      <div class="copilot-header">
-        <div class="copilot-dot"></div>
-        <span class="copilot-title">SCOUT Copilot</span>
-        <span class="copilot-sub">Powered by Claude</span>
-        <button onclick="saveSnippet()" title="Save insight" style="margin-left:8px;background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:14px;padding:2px 4px;" title="Save conversation insight">💾</button>
-      </div>
-      <div class="copilot-messages" id="copilot-messages">
-        <div class="copilot-empty" id="copilot-empty">
-          <div class="copilot-empty-icon" id="copilot-icon">🤖</div>
-          <div>Parse an RFQ to activate the copilot</div>
-          <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px;">Claude will review the email and suggest next steps</div>
-        </div>
-      </div>
-      <div class="copilot-input-wrap" style="flex-direction:column;gap:6px;">
-        <div style="display:flex;gap:6px;align-items:flex-end;">
-          <textarea class="copilot-input" id="copilot-input" placeholder="Ask Claude about this RFQ…" rows="1" onkeydown="copilotKeydown(event)"></textarea>
-          <button class="copilot-send" id="copilot-send" onclick="sendCopilotMessage()" disabled>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <label for="copilot-file" style="font-size:11px;color:var(--text-tertiary);cursor:pointer;display:flex;align-items:center;gap:4px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Attach drawing or doc
-          </label>
-          <input type="file" id="copilot-file" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="handleCopilotFile(this)">
-          <span id="copilot-file-name" style="font-size:11px;color:var(--green);"></span>
-        </div>
-      </div>
-    </div>
-  </div>
 
 </div><!-- app-layout -->
 
@@ -744,10 +693,6 @@ const CRITERIA = [
 const SECTION_LABELS = {1:'Client / GC qualification',2:'Project fit',3:'Commercial viability',4:'Operational capacity'};
 const SECTION_MAX = {1:30,2:28,3:22,4:20};
 
-let bids = [];
-try { bids = JSON.parse(localStorage.getItem('einbau_bids')||'[]'); } catch(e) {}
-function saveBids(){try{localStorage.setItem('einbau_bids',JSON.stringify(bids));}catch(e){}}
-
 function buildDisqualifiers(){
   const g=document.getElementById('disq-grid');
   g.innerHTML=DISQUALIFIERS.map((d,i)=>`
@@ -950,10 +895,6 @@ async function declineRFQ(){
     copilot_summary: getCopilotSummary()
   };
 
-  const bid={...payload,id:Date.now(),status:'declined'};
-  bids.push(bid);
-  saveBids();
-
   if(SUBMIT_URL){
     try{
       await fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -965,7 +906,6 @@ async function declineRFQ(){
 
   btn.disabled=false;
   clearForm();
-  renderBoard();
 }
 
 function getCopilotSummary(){
@@ -1025,7 +965,6 @@ async function submitRFQ(){
   }
   btn.disabled=false;
   clearForm();
-  renderBoard();
 }
 
 function clearForm(){
@@ -1047,46 +986,9 @@ function showTab(tab){
   document.getElementById('tab-intake').style.display=tab==='intake'?'':'none';
   document.getElementById('tab-board').style.display=tab==='board'?'':'none';
   document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',(tab==='intake'&&i===0)||(tab==='board'&&i===1)));
-  if(tab==='board') renderBoard();
 }
 
-function showBoardTab(t){
-  ['active','passed','declined'].forEach(s=>{document.getElementById('board-'+s).style.display=s===t?'':'none';});
-  document.querySelectorAll('.sub-nav-btn').forEach((b,i)=>b.classList.toggle('active',['active','passed','declined'][i]===t));
-}
 
-function tierClass(tier){return{A:'tier-a',B:'tier-b',C:'tier-c','No bid':'tier-no'}[tier]||'tier-no';}
-
-function renderBoard(){
-  ['active','passed','declined'].forEach(status=>{
-    const list=bids.filter(b=>b.status===status);
-    const container=document.getElementById('board-'+status);
-    if(!container) return;
-    if(!list.length){
-      container.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div>No ${status} bids yet</div>`;
-      return;
-    }
-    container.innerHTML=`<div class="bid-table-wrap">
-      <table class="bid-table">
-        <thead><tr><th>Project</th><th>Client</th><th>Estimator</th><th>Score</th><th>Tier</th><th>Date</th><th>Push</th><th></th></tr></thead>
-        <tbody>${list.map(b=>`<tr>
-          <td style="font-weight:600">${b.projname||'—'}</td>
-          <td>${b.client||'—'}</td>
-          <td>${b.estimator||'—'}</td>
-          <td style="font-weight:700;font-size:15px">${b.disqualifiers&&b.disqualifiers.length?'<span style="color:var(--red)">✕</span>':b.total_score}</td>
-          <td><span class="tier-badge ${tierClass(b.tier)}" style="font-size:10px">${b.tier}</span></td>
-          <td style="color:var(--text-tertiary);font-size:12px">${b.bid_date||'—'}</td>
-          <td style="color:var(--green)">${b.push_to_bid?'✓':'—'}</td>
-          <td style="white-space:nowrap;display:flex;gap:6px;padding:12px 14px">
-            ${status==='active'?`<button class="btn-success-outline" onclick="archiveBid(${b.id},'passed')">Pass</button><button class="btn-danger-outline" onclick="archiveBid(${b.id},'declined')">Decline</button>`:''}
-            ${status!=='active'?`<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px" onclick="archiveBid(${b.id},'active')">Restore</button>`:''}
-          </td>
-        </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
-  });
-}
 
 function archiveBid(id,newStatus){
   const b=bids.find(b=>b.id===id);
@@ -1114,7 +1016,7 @@ setTimeout(loadClients, 300);
     if(est.toLowerCase() === 'alfonso'){
       const icon = document.getElementById('copilot-icon');
       if(icon){
-        icon.innerHTML = '<img src="https://lambwright.github.io/scout-addin/alfonso.png" style="width:48px;height:48px;border-radius:8px;" alt="Alfonso">';
+        icon.innerHTML = '<img src="https://lambwright.github.io/scout-addin/alfonso.png" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" alt="Alfonso">';
       }
     }
   }
