@@ -247,7 +247,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Turbulent Platypus</div>
+  <div class="header-version">Pensive Capybara</div>
 </header>
 
 <div class="container">
@@ -348,6 +348,10 @@
         <button class="btn btn-green" onclick="submitRFQ()" id="submit-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           Submit to bid board
+        </button>
+        <button class="btn btn-decline" onclick="declineRFQ()" id="decline-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          Decline to bid
         </button>
         <button class="btn btn-ghost" onclick="clearForm()">Clear form</button>
         <span id="submit-status" class="status-msg"></span>
@@ -536,7 +540,7 @@ You can include multiple form_update blocks. Only update fields when you have cl
 
   copilotHistory.push({ role: 'user', content: systemContext });
   if(isAlfonso) {
-    copilotHistory.push({ role: 'assistant', content: '¡Aliméntame, Alfonso! 🤠 Feed me, Alfonso! Now let me take a look at this RFQ...' });
+    // Show greeting visually only - don't add to API history
     addCopilotMessage('assistant', '¡Aliméntame, Alfonso! 🤠 Feed me, Alfonso! Now let me take a look at this RFQ...');
   }
 
