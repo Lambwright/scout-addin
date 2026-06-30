@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Patient Otter</div>
+  <div class="header-version">Curious Badger</div>
 </header>
 
 <div class="container">
@@ -1006,6 +1006,7 @@ function updateScore(){
     tierEl.textContent='Disqualified';
     recEl.textContent='One or more automatic disqualifiers triggered — no bid.';
     document.getElementById('push-to-bid').checked=false;
+    document.getElementById('push-to-bid').dataset.touched='';
   } else if(totalMax===0){
     scoreEl.textContent='—';
     tierEl.className='tier-badge tier-no';
@@ -1025,15 +1026,14 @@ function updateScore(){
     recEl.textContent=rec;
     const autoPush=totalScaled>=60&&!disqTriggered;
     const pushCb=document.getElementById('push-to-bid');
-    if(!pushCb._manualSet) pushCb.checked=autoPush;
+    if(!pushCb.dataset.touched) pushCb.checked=autoPush;
   }
   document.getElementById('section-scores').innerHTML=sectionScores.map((s,i)=>`S${i+1}: <strong>${s}</strong>`).join('<br>');
   checkSubmitGate();
 }
 
 document.getElementById('push-to-bid').addEventListener('change',function(){
-  this._manualSet=true;
-  setTimeout(()=>{this._manualSet=false;},100);
+  this.dataset.touched='true';
 });
 
 async function parseRFQ(){
