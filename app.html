@@ -247,7 +247,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Gandalf Edition</div>
+  <div class="header-version">Sage Edition</div>
 </header>
 
 <div class="container">
@@ -629,6 +629,8 @@ SCORING GUIDANCE:
 - Geographic fit: Rest of AB/BC/ON/QC/Prairies = "Reachable – moderate mobilization"
 - Timeline: 6am starts = no concern. After-hours/weekend = note overtime implications, not a disqualifier.
 - Sector: Yorkdale, Oakridge, Yorkville, Forest Hill, Rosedale, Bridle Path = luxury/high-value, score accordingly.
+
+RESPONSE STYLE: Write in plain, concise prose. Avoid markdown tables, excessive headers, and heavy bullet formatting. Use short paragraphs. Get to the point. Estimators are busy — every extra word costs their time and our API budget. Bullets are fine for short lists but don't over-format simple points.
 
 Start with a brief summary of what you found, what fields are missing, and any scoring suggestions based on the above context.
 
@@ -1076,7 +1078,7 @@ async function declineRFQ(){
     notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
     override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
     submitted_at:new Date().toISOString(),
-    copilot_summary: getCopilotSummary()
+    copilot_summary: await getCopilotSummary()
   };
 
   if(SUBMIT_URL){
@@ -1092,12 +1094,35 @@ async function declineRFQ(){
   clearForm();
 }
 
-function getCopilotSummary(){
-  if(!copilotHistory.length) return '';
-  // Return last assistant message as the summary
-  const assistantMsgs = copilotHistory.filter(m => m.role === 'assistant');
-  if(!assistantMsgs.length) return '';
-  return assistantMsgs[assistantMsgs.length-1].content.substring(0, 500);
+async function getCopilotSummary(){
+  if(!copilotHistory.length || copilotHistory.length < 3) return '';
+  
+  const extractionPrompt = `Review this conversation between an estimator at Einbau Services and an AI copilot helping qualify an RFQ.
+
+Extract ONLY moments where the estimator corrected an assumption, taught new business context not already known, or requested a format/process change. Examples worth capturing: "we actually do X even though it's not typical", "we work with Y regularly", "please format responses like Z".
+
+Ignore routine RFQ-specific details (this client's address, this project's scope, etc). Only capture transferable learnings that should update how the AI assists with FUTURE RFQs.
+
+If there is nothing worth learning, respond with exactly: NONE
+
+Conversation:
+${JSON.stringify(copilotHistory.filter(m => typeof m.content === 'string' || Array.isArray(m.content)).map(m => ({role: m.role, content: typeof m.content === 'string' ? m.content.substring(0,1000) : '[attachment]'})))}
+
+Respond with a short bullet list of learnings only, or NONE.`;
+
+  try {
+    const res = await fetch('https://scout.ben-a90.workers.dev', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ messages: [{ role: 'user', content: extractionPrompt }] })
+    });
+    const data = await res.json();
+    const result = data.content?.[0]?.text?.trim() || '';
+    return result === 'NONE' ? '' : result.substring(0, 800);
+  } catch(e) {
+    console.error('Learning extraction failed:', e);
+    return '';
+  }
 }
 
 async function submitRFQ(){
@@ -1136,7 +1161,7 @@ async function submitRFQ(){
     notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
     override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
     submitted_at:new Date().toISOString(),
-    copilot_summary: getCopilotSummary()
+    copilot_summary: await getCopilotSummary()
   };
   const bid={...payload,id:Date.now(),status:'active'};
   bids.push(bid);
