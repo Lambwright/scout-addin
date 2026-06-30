@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Ruler Edition</div>
+  <div class="header-version">Drifting Heron</div>
 </header>
 
 <div class="container">
@@ -303,6 +303,16 @@
         <div class="score-info">
           <span class="tier-badge tier-no" id="tier-badge">No score yet</span>
           <div class="rec-text" id="rec-text">Fill in the scoring criteria below to generate a recommendation.</div>
+          <div class="score-ruler-wrap">
+            <div class="score-ruler">
+              <div class="ruler-zone no-bid"></div>
+              <div class="ruler-zone c"></div>
+              <div class="ruler-zone b"></div>
+              <div class="ruler-zone a"></div>
+              <div class="ruler-marker" id="ruler-marker" style="left:0%"></div>
+            </div>
+            <div class="ruler-labels"><span>0</span><span>40</span><span>60</span><span>80</span><span>100</span></div>
+          </div>
         </div>
         <div class="section-scores-display" id="section-scores">—</div>
       </div>
@@ -355,6 +365,10 @@
         </div>
       </div>
 
+      <div class="low-tier-confirm" id="low-tier-confirm" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--red-light);border:1px solid var(--red-border);border-radius:var(--radius-sm);align-items:center;gap:8px;">
+        <input type="checkbox" id="low-tier-ack" onchange="checkSubmitGate()" style="width:14px;height:14px;accent-color:var(--red);">
+        <label for="low-tier-ack" style="font-size:12px;color:var(--text-primary);cursor:pointer;">I understand this RFQ scored below Tier B and want to submit anyway</label>
+      </div>
       <div class="action-row">
         <button class="btn btn-green" onclick="submitRFQ()" id="submit-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -367,8 +381,6 @@
         <button class="btn btn-ghost" onclick="clearForm()">Clear form</button>
         <span id="submit-status" class="status-msg"></span>
       </div>
-      <p class="webhook-note" id="webhook-note">Submit flow not configured — submissions stored locally only.</p>
-
     </div>
   </div><!-- tab-content -->
   </div><!-- form-column -->
@@ -932,15 +944,17 @@ function buildScoringSection(){
 
 
 function checkSubmitGate(){
-  const scoreText = document.getElementById('score-display').textContent;
-  const total = parseInt(scoreText) || 0;
-  const disq = document.getElementById('tier-badge').textContent === 'Disqualified';
-  const lowTier = disq || total < 60;
   const gateBox = document.getElementById('low-tier-confirm');
   const ack = document.getElementById('low-tier-ack');
   const submitBtn = document.getElementById('submit-btn');
-  
-  if(lowTier && total > 0 || disq){
+  if(!gateBox || !ack || !submitBtn) return;
+
+  const scoreText = document.getElementById('score-display').textContent;
+  const total = parseInt(scoreText) || 0;
+  const disq = document.getElementById('tier-badge').textContent === 'Disqualified';
+  const lowTier = disq || (total > 0 && total < 60);
+
+  if(lowTier){
     gateBox.style.display = 'flex';
     submitBtn.disabled = !ack.checked;
   } else {
