@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Drifting Heron</div>
+  <div class="header-version">Patient Otter</div>
 </header>
 
 <div class="container">
@@ -360,14 +360,14 @@
         <div class="field-grid" style="grid-template-columns:1fr;">
           <div class="field"><label>Strategic context / opportunity notes</label><textarea id="f-notes" rows="3"></textarea></div>
           <div class="field"><label>Risk flags or concerns</label><textarea id="f-risks" rows="2"></textarea></div>
-          <div class="field"><label>Leadership override reason</label><textarea id="f-override" rows="2"></textarea></div>
-          <div class="field"><label>Override approved by</label><input type="text" id="f-approver" placeholder="Name"></div>
+          <div class="field"><label>Leadership override reason</label><textarea id="f-override" rows="2" oninput="checkSubmitGate()"></textarea></div>
+          <div class="field"><label>Override approved by</label><input type="text" id="f-approver" placeholder="Name" oninput="checkSubmitGate()"></div>
         </div>
       </div>
 
-      <div class="low-tier-confirm" id="low-tier-confirm" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--red-light);border:1px solid var(--red-border);border-radius:var(--radius-sm);align-items:center;gap:8px;">
-        <input type="checkbox" id="low-tier-ack" onchange="checkSubmitGate()" style="width:14px;height:14px;accent-color:var(--red);">
-        <label for="low-tier-ack" style="font-size:12px;color:var(--text-primary);cursor:pointer;">I understand this RFQ scored below Tier B and want to submit anyway</label>
+      <div class="low-tier-confirm" id="low-tier-confirm" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--red-light);border:1px solid var(--red-border);border-radius:var(--radius-sm);align-items:center;gap:8px;font-size:12px;color:var(--text-primary);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--red)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>This RFQ scored below Tier B. Check "Push to bid board" above and complete the override fields below to submit anyway.</span>
       </div>
       <div class="action-row">
         <button class="btn btn-green" onclick="submitRFQ()" id="submit-btn">
@@ -945,18 +945,28 @@ function buildScoringSection(){
 
 function checkSubmitGate(){
   const gateBox = document.getElementById('low-tier-confirm');
-  const ack = document.getElementById('low-tier-ack');
   const submitBtn = document.getElementById('submit-btn');
-  if(!gateBox || !ack || !submitBtn) return;
+  const pushToBid = document.getElementById('push-to-bid');
+  const overrideReason = document.getElementById('f-override');
+  const approver = document.getElementById('f-approver');
+  if(!gateBox || !submitBtn || !pushToBid) return;
 
   const scoreText = document.getElementById('score-display').textContent;
   const total = parseInt(scoreText) || 0;
   const disq = document.getElementById('tier-badge').textContent === 'Disqualified';
-  const lowTier = disq || (total > 0 && total < 60);
+  const lowTier = disq || total === 0 || total < 60;
+
+  if(total === 0 && !disq){
+    // Nothing scored yet
+    gateBox.style.display = 'none';
+    submitBtn.disabled = true;
+    return;
+  }
 
   if(lowTier){
     gateBox.style.display = 'flex';
-    submitBtn.disabled = !ack.checked;
+    const hasOverride = overrideReason.value.trim() && approver.value.trim();
+    submitBtn.disabled = !(pushToBid.checked && hasOverride);
   } else {
     gateBox.style.display = 'none';
     submitBtn.disabled = false;
@@ -1238,9 +1248,8 @@ function clearForm(){
   document.getElementById('rfq-email').value='';
   document.getElementById('parse-status').textContent='';
   document.getElementById('copilot-input').placeholder = 'Ask Claude about this RFQ…';
-  document.getElementById('low-tier-ack').checked = false;
   document.getElementById('low-tier-confirm').style.display = 'none';
-  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('submit-btn').disabled = true;
   document.getElementById('submit-status').textContent='';
   updateScore();
 }
