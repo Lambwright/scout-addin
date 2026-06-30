@@ -178,6 +178,18 @@
     .action-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
     .webhook-note { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
 
+
+    /* Score ruler */
+    .score-ruler-wrap { margin-top: 10px; }
+    .score-ruler { position: relative; height: 8px; border-radius: 4px; overflow: hidden; display: flex; }
+    .ruler-zone { height: 100%; }
+    .ruler-zone.no-bid { background: #fee2e2; flex: 40; }
+    .ruler-zone.c { background: #dbeafe; flex: 20; }
+    .ruler-zone.b { background: #fef9c3; flex: 20; }
+    .ruler-zone.a { background: #dcfce7; flex: 20; }
+    .ruler-marker { position: absolute; top: -3px; width: 3px; height: 14px; background: var(--text-primary); border-radius: 2px; transition: left 0.3s ease; box-shadow: 0 0 0 2px var(--bg-card); }
+    .ruler-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-tertiary); margin-top: 3px; letter-spacing: 0.04em; }
+
     /* Bid board */
     .sub-nav { display: flex; gap: 6px; margin-bottom: 16px; }
     .sub-nav-btn { padding: 6px 16px; font-size: 12px; font-weight: 600; background: var(--bg-card); border: 1px solid var(--border-input); border-radius: 20px; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; letter-spacing: 0.02em; }
@@ -247,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Sage Edition</div>
+  <div class="header-version">Ruler Edition</div>
 </header>
 
 <div class="container">
@@ -918,6 +930,25 @@ function buildScoringSection(){
   });
 }
 
+
+function checkSubmitGate(){
+  const scoreText = document.getElementById('score-display').textContent;
+  const total = parseInt(scoreText) || 0;
+  const disq = document.getElementById('tier-badge').textContent === 'Disqualified';
+  const lowTier = disq || total < 60;
+  const gateBox = document.getElementById('low-tier-confirm');
+  const ack = document.getElementById('low-tier-ack');
+  const submitBtn = document.getElementById('submit-btn');
+  
+  if(lowTier && total > 0 || disq){
+    gateBox.style.display = 'flex';
+    submitBtn.disabled = !ack.checked;
+  } else {
+    gateBox.style.display = 'none';
+    submitBtn.disabled = false;
+  }
+}
+
 function updateScore(){
   const disqTriggered=DISQUALIFIERS.some((_,i)=>document.getElementById('disq-'+i)?.checked);
   DISQUALIFIERS.forEach((_,i)=>{
@@ -945,6 +976,8 @@ function updateScore(){
   const recEl=document.getElementById('rec-text');
   if(disqTriggered){
     scoreEl.textContent='✕';
+    const marker0=document.getElementById('ruler-marker');
+    if(marker0) marker0.style.left='0%';
     tierEl.className='tier-badge tier-disq';
     tierEl.textContent='Disqualified';
     recEl.textContent='One or more automatic disqualifiers triggered — no bid.';
@@ -956,6 +989,8 @@ function updateScore(){
     recEl.textContent='Fill in the scoring criteria below to generate a recommendation.';
   } else {
     scoreEl.textContent=totalScaled;
+    const marker=document.getElementById('ruler-marker');
+    if(marker) marker.style.left=Math.min(totalScaled,100)+'%';
     let tier,cls,rec;
     if(totalScaled>=80){tier='Tier A';cls='tier-a';rec='High priority — submit bid. Assign estimator and flag for leadership.';}
     else if(totalScaled>=60){tier='Tier B';cls='tier-b';rec='Medium priority — qualify further before committing estimating resources.';}
@@ -969,6 +1004,7 @@ function updateScore(){
     if(!pushCb._manualSet) pushCb.checked=autoPush;
   }
   document.getElementById('section-scores').innerHTML=sectionScores.map((s,i)=>`S${i+1}: <strong>${s}</strong>`).join('<br>');
+  checkSubmitGate();
 }
 
 document.getElementById('push-to-bid').addEventListener('change',function(){
@@ -1188,6 +1224,9 @@ function clearForm(){
   document.getElementById('rfq-email').value='';
   document.getElementById('parse-status').textContent='';
   document.getElementById('copilot-input').placeholder = 'Ask Claude about this RFQ…';
+  document.getElementById('low-tier-ack').checked = false;
+  document.getElementById('low-tier-confirm').style.display = 'none';
+  document.getElementById('submit-btn').disabled = false;
   document.getElementById('submit-status').textContent='';
   updateScore();
 }
