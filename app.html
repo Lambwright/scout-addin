@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Curious Badger</div>
+  <div class="header-version">Vigilant Heron</div>
 </header>
 
 <div class="container">
@@ -816,7 +816,7 @@ async function loadClients() {
   try {
     const res = await fetch(GET_CLIENTS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
     const data = await res.json();
-    allClients = [...new Set(data.map(r => r['Name']).filter(Boolean))].sort();
+    allClients = [...new Set(data.map(r => (r['Name'] || '').trim()).filter(Boolean))].sort();
     renderDropdown(allClients);
   } catch(e) {
     document.getElementById('client-dropdown').innerHTML = '<div class="combobox-empty">Could not load — type a name manually</div>';
@@ -1218,6 +1218,7 @@ async function submitRFQ(){
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
     push_to_bid:document.getElementById('push-to-bid').checked,
+    status:'Active',
     notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
     override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
     submitted_at:new Date().toISOString(),
