@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Cosmic Weasel</div>
+  <div class="header-version">Feral Mongoose</div>
 </header>
 
 <div class="container">
@@ -838,8 +838,8 @@ function renderDropdown(clients) {
     dd.innerHTML = '<div class="combobox-empty">No matches</div>';
     return;
   }
-  dd.innerHTML = clients.slice(0, 80).map(n =>
-    `<div class="combobox-option${n === selectedClient ? ' selected' : ''}" onmousedown="selectClient('${n.replace(/'/g, "\\'")}')">${n}</div>`
+  dd.innerHTML = clients.slice(0, 80).map(c =>
+    `<div class="combobox-option${c.name === selectedClient ? ' selected' : ''}" onmousedown="selectClient('${c.name.replace(/'/g, "\\'")}', '${c.id || ''}', '${c.procoreId || ''}')">${c.name}</div>`
   ).join('');
   if (clients.length > 80) {
     dd.innerHTML += `<div class="combobox-empty">+ ${clients.length - 80} more — keep typing to narrow</div>`;
