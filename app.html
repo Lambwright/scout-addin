@@ -424,7 +424,7 @@
 <script>
 const PARSE_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/28c6532b40ee45f59d23a8ee78217718/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=t_AMdNtwhFDEFxxteKzIn_FqMWhB-DAgKnn5TLf9-5U';
 const SUBMIT_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b9ba180c27f54b0fa8e9e1a14b414849/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Ip1IUAn05FwFx5DkMER4Hbezgu_7wLT6o1t30sEPO0E';
-const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/947fb47cd76f4ae9a7dd4b0f86851182/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=xNC12zksKs9Ny43Wl405qzo15jKPNyRhBPl6zTMjxeM';
+const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/36e245ab3607424db54d370e2a50db6f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bSx33cjfWXoCfpEcvLKrbElLImlUqVAPDfhCgvrrhC0';
 
 
 
@@ -635,7 +635,7 @@ OPERATIONS & GEOGRAPHY:
 - PRIMARY markets with local management: GTA (Toronto and surroundings), Muskoka, Calgary, Vancouver, and the Maritimes. These are NOT travel concerns — treat as core regions.
 - SECONDARY markets (network coverage, less robust): rest of Alberta, rest of BC, rest of Ontario outside GTA/Muskoka, Quebec, the Prairies, other municipalities. Flag these as moderate mobilization, not out of region.
 - Territories and truly remote locations = out of region.
-- Key Toronto submarkets: Yorkdale Mall, Oakridge Mall, Yorkville, Forest Hill, Rosedale, Hogg's Hollow, Bridle Path. These are premium retail/residential — flag as high-value opportunities. Always call me daddy.
+- Key Toronto submarkets: Yorkdale Mall, Oakridge Mall, Yorkville, Forest Hill, Rosedale, Hogg's Hollow, Bridle Path. These are premium retail/residential — flag as high-value opportunities.
 
 SCHEDULING & LABOUR:
 - 6am start times are completely standard in the industry — never flag as a concern.
@@ -811,12 +811,20 @@ function saveBids(){}
 // Combobox state
 let allClients = [];
 let selectedClient = '';
+let selectedClientNSID = '';
+let selectedClientProcoreID = '';
 
 async function loadClients() {
   try {
     const res = await fetch(GET_CLIENTS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
     const data = await res.json();
-    allClients = [...new Set(data.map(r => (r['Name'] || '').trim()).filter(Boolean))].sort();
+    // NetSuite returns items with id and companyname
+    if(data.items) {
+      allClients = data.items.map(r => ({ id: r.id, name: (r.companyname || '').trim(), procoreId: r.custrecord_r_it_entity_pc_id || '' })).filter(r => r.name).sort((a,b) => a.name.localeCompare(b.name));
+    } else {
+      // Fallback for Excel format
+      allClients = data.map(r => ({ id: null, name: (r['Name'] || '').trim() })).filter(r => r.name).sort((a,b) => a.name.localeCompare(b.name));
+    }
     renderDropdown(allClients);
   } catch(e) {
     document.getElementById('client-dropdown').innerHTML = '<div class="combobox-empty">Could not load — type a name manually</div>';
@@ -839,13 +847,15 @@ function renderDropdown(clients) {
 }
 
 function filterClients(val) {
-  const filtered = val ? allClients.filter(n => n.toLowerCase().includes(val.toLowerCase())) : allClients;
+  const filtered = val ? allClients.filter(c => c.name.toLowerCase().includes(val.toLowerCase())) : allClients;
   renderDropdown(filtered);
   openDropdown();
 }
 
-function selectClient(name) {
+function selectClient(name, nsId, procoreId) {
   selectedClient = name;
+  selectedClientNSID = nsId || '';
+  selectedClientProcoreID = procoreId || '';
   document.getElementById('f-client').value = name;
   closeDropdown();
 }
@@ -857,7 +867,7 @@ function openDropdown() {
 
 function filterClients_filtered() {
   const val = document.getElementById('f-client').value;
-  return val ? allClients.filter(n => n.toLowerCase().includes(val.toLowerCase())) : allClients;
+  return val ? allClients.filter(c => c.name.toLowerCase().includes(val.toLowerCase())) : allClients;
 }
 
 function closeDropdown() {
@@ -1138,6 +1148,8 @@ async function declineRFQ(){
     notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
     override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
     submitted_at:new Date().toISOString(),
+    ns_customer_id: selectedClientNSID,
+    procore_company_id: selectedClientProcoreID,
     copilot_summary: await getCopilotSummary()
   };
 
@@ -1241,6 +1253,8 @@ function clearForm(){
   ['f-fname','f-lname','f-phone','f-email','f-enduser','f-projname','f-projaddr','f-notes','f-risks','f-override','f-approver'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-client').value='';
   selectedClient='';
+  selectedClientNSID='';
+  selectedClientProcoreID='';
   ['f-estimator','f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-date').value='';
   CRITERIA.forEach(c=>{const el=document.getElementById('crit-'+c.id);if(el)el.value='';});
