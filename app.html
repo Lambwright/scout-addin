@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Stoic Tapir</div>
+  <div class="header-version">Anxious Clouded Leopard</div>
 </header>
 
 <div class="container">
@@ -1241,9 +1241,11 @@ async function submitRFQ(){
     notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
     override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
     submitted_at:new Date().toISOString(),
+    ns_customer_id: selectedClientNSID,
+    procore_company_id: selectedClientProcoreID,
     copilot_summary: await getCopilotSummary()
   };
-  const bid={...payload,id:Date.now(),status:'active'};
+  console.log('Submit payload ns_customer_id:', selectedClientNSID);
   bids.push(bid);
   saveBids();
   if(SUBMIT_URL){
