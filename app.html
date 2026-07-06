@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Feral Mongoose</div>
+  <div class="header-version">Languid Binturong</div>
 </header>
 
 <div class="container">
@@ -818,13 +818,19 @@ async function loadClients() {
   try {
     const res = await fetch(GET_CLIENTS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
     const data = await res.json();
-    // NetSuite returns items with id and companyname
-    if(data.items) {
-      allClients = data.items.map(r => ({ id: r.id, name: (r.companyname || '').trim(), procoreId: r.custrecord_r_it_entity_pc_id || '' })).filter(r => r.name).sort((a,b) => a.name.localeCompare(b.name));
+    console.log('loadClients response keys:', Object.keys(data));
+    // NetSuite SuiteQL returns {items: [...], count: N, ...}
+    // Excel returns [{Name: ...}, ...]
+    let records;
+    if(data.items && Array.isArray(data.items)) {
+      records = data.items.map(r => ({ id: String(r.id || ''), name: (r.companyname || '').trim(), procoreId: r.custrecord_r_it_entity_pc_id || '' }));
+    } else if(Array.isArray(data)) {
+      records = data.map(r => ({ id: null, name: (r['Name'] || '').trim(), procoreId: '' }));
     } else {
-      // Fallback for Excel format
-      allClients = data.map(r => ({ id: null, name: (r['Name'] || '').trim() })).filter(r => r.name).sort((a,b) => a.name.localeCompare(b.name));
+      console.error('Unexpected loadClients format:', data);
+      records = [];
     }
+    allClients = records.filter(r => r.name).sort((a,b) => a.name.localeCompare(b.name));
     renderDropdown(allClients);
   } catch(e) {
     document.getElementById('client-dropdown').innerHTML = '<div class="combobox-empty">Could not load — type a name manually</div>';
