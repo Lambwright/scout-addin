@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Resolute Sun Bear</div>
+  <div class="header-version">Tenacious Pangolin</div>
 </header>
 
 <div class="container">
@@ -281,7 +281,7 @@
         <textarea class="parse-textarea" id="rfq-email" placeholder="Paste the full RFQ email here…"></textarea>
         <div class="parse-controls">
           <div class="client-wrap">
-            <label class="client-label">Bid requester / client <span class="field-req">*</span></label>
+            <label class="client-label">Bid requester / client <span class="field-req">*</span> <span style="font-size:10px;color:var(--text-tertiary);cursor:pointer;font-weight:400" onclick="loadClients()" title="Refresh client list">↻</span></label>
             <div class="combobox-wrap" id="client-combobox">
               <input type="text" class="combobox-input" id="f-client" placeholder="Search clients…" autocomplete="off" oninput="filterClients(this.value)" onfocus="openDropdown()" onblur="closeDropdownDelayed()">
               <div class="combobox-dropdown" id="client-dropdown">
@@ -814,27 +814,32 @@ let selectedClient = '';
 let selectedClientNSID = '';
 let selectedClientProcoreID = '';
 
-async function loadClients() {
+async function loadClients(retryCount = 0) {
   try {
     const res = await fetch(GET_CLIENTS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
     const data = await res.json();
-    console.log('loadClients response keys:', Object.keys(data));
-    // NetSuite SuiteQL returns {items: [...], count: N, ...}
-    // Excel returns [{Name: ...}, ...]
     let records;
     if(data.items && Array.isArray(data.items)) {
       records = data.items.map(r => ({ id: String(r.id || ''), name: (r.companyname || '').trim(), procoreId: r.custrecord_r_it_entity_pc_id || '' }));
     } else if(Array.isArray(data)) {
       records = data.map(r => ({ id: null, name: (r['Name'] || '').trim(), procoreId: '' }));
     } else {
-      console.error('Unexpected loadClients format:', data);
+      if(retryCount < 2) {
+        setTimeout(() => loadClients(retryCount + 1), 2000);
+        return;
+      }
       records = [];
+      document.getElementById('client-dropdown').innerHTML = '<div class="combobox-empty">⚠ Could not load clients — type manually or <span style="cursor:pointer;color:var(--green)" onclick="loadClients()">retry</span></div>';
     }
     allClients = records.filter(r => r.name).sort((a,b) => a.name.localeCompare(b.name));
     renderDropdown(allClients);
   } catch(e) {
-    document.getElementById('client-dropdown').innerHTML = '<div class="combobox-empty">Could not load — type a name manually</div>';
     console.error('loadClients:', e);
+    if(retryCount < 2) {
+      setTimeout(() => loadClients(retryCount + 1), 2000);
+    } else {
+      document.getElementById('client-dropdown').innerHTML = '<div class="combobox-empty">⚠ Could not load — <span style="cursor:pointer;color:var(--green)" onclick="loadClients()">retry</span></div>';
+    }
   }
 }
 
