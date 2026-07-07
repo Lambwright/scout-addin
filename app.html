@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Wary Pangolin</div>
+  <div class="header-version">Covert Wolverine</div>
 </header>
 
 <div class="container">
@@ -833,6 +833,11 @@ async function loadClients(retryCount = 0) {
     }
     allClients = records.filter(r => r.name).sort((a,b) => a.name.localeCompare(b.name));
     renderDropdown(allClients);
+    // If we got suspiciously few records, retry once after a delay
+    if(allClients.length < 1200 && retryCount < 2) {
+      console.log(`Only got ${allClients.length} clients, retrying...`);
+      setTimeout(() => loadClients(retryCount + 1), 2000);
+    }
   } catch(e) {
     console.error('loadClients:', e);
     if(retryCount < 2) {
