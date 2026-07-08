@@ -177,6 +177,12 @@
     /* Action row */
     .action-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
     .webhook-note { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
+    .dest-status { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+    .dest-indicator { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; }
+    .dest-indicator.pending { color: var(--text-tertiary); }
+    .dest-indicator.success { color: var(--green); }
+    .dest-indicator.error { color: var(--red); }
+    .dest-indicator.skipped { color: var(--text-tertiary); opacity: 0.5; }
 
 
     /* Score ruler */
@@ -259,7 +265,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Recon Ptarmigan</div>
+  <div class="header-version">Decisive Muskox</div>
 </header>
 
 <div class="container">
@@ -385,6 +391,22 @@
         <button class="btn btn-ghost" onclick="clearForm()">Clear form</button>
         <span id="submit-status" class="status-msg"></span>
       </div>
+      <div class="dest-status" id="dest-status" style="display:none">
+        <div class="dest-indicator pending" id="dest-excel">
+          <span id="dest-excel-icon">⏳</span> Excel
+          <button id="dest-excel-retry" onclick="retryDest('excel')" style="display:none;font-size:10px;padding:2px 6px;margin-left:4px;background:none;border:1px solid var(--red-border);color:var(--red);border-radius:4px;cursor:pointer;">Retry</button>
+        </div>
+        <div class="dest-indicator pending" id="dest-netsuite">
+          <span id="dest-netsuite-icon">⏳</span> NetSuite
+          <button id="dest-netsuite-retry" onclick="retryDest('netsuite')" style="display:none;font-size:10px;padding:2px 6px;margin-left:4px;background:none;border:1px solid var(--red-border);color:var(--red);border-radius:4px;cursor:pointer;">Retry</button>
+        </div>
+        <div class="dest-indicator pending" id="dest-procore">
+          <span id="dest-procore-icon">⏳</span> Procore
+          <button id="dest-procore-retry" onclick="retryDest('procore')" style="display:none;font-size:10px;padding:2px 6px;margin-left:4px;background:none;border:1px solid var(--red-border);color:var(--red);border-radius:4px;cursor:pointer;">Retry</button>
+        </div>
+      </div>
+      <div style="display:none"><!-- placeholder to fix extra closing div -->
+      </div>
     </div>
   </div><!-- tab-content -->
   </div><!-- form-column -->
@@ -427,7 +449,8 @@
 
 <script>
 const PARSE_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/28c6532b40ee45f59d23a8ee78217718/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=t_AMdNtwhFDEFxxteKzIn_FqMWhB-DAgKnn5TLf9-5U';
-const SUBMIT_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b9ba180c27f54b0fa8e9e1a14b414849/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Ip1IUAn05FwFx5DkMER4Hbezgu_7wLT6o1t30sEPO0E';
+const SUBMIT_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/14/workflows/b9ba180c27f54b0fa8e9e1a14b414849/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Ip1IUAn05FwFx5DkMER4Hbezgu_7wLT6o1t30sEPO0E'; // Save to Excel
+const NETSUITE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/28ae491be00049f19669029e7a0fdf24/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cfdbmr7yjbFYI37JtqSNGHl7cV0iXgZlH06kvYm0lVk'; // Create NS record
 const PROCORE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/9279180a5e8e4c9b8e2758391e178f7d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=67n79vxffs7yuFfAZWw0PfR1UDMIzDtNNKuR2-gnTkg';
 const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/36e245ab3607424db54d370e2a50db6f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bSx33cjfWXoCfpEcvLKrbElLImlUqVAPDfhCgvrrhC0';
 
@@ -1141,6 +1164,95 @@ function exportSnippets() {
 }
 
 
+async function submitRFQ(){
+  const client=document.getElementById('f-client').value.trim();
+  if(!client){alert('Client name is required.');return;}
+  const btn=document.getElementById('submit-btn');
+  const status=document.getElementById('submit-status');
+  btn.disabled=true;
+  status.innerHTML='<span class="spinner"></span> Submitting…';
+  const disqTriggered=DISQUALIFIERS.filter((_,i)=>document.getElementById('disq-'+i)?.checked);
+  const scoringValues={};const scoringLabels={};
+  CRITERIA.forEach(c=>{
+    const el=document.getElementById('crit-'+c.id);
+    if(el&&el.selectedIndex>0){scoringValues[c.id]=parseInt(el.value)||0;scoringLabels[c.id]=el.options[el.selectedIndex].text;}
+    else{scoringValues[c.id]=0;scoringLabels[c.id]='';}
+  });
+  const sectionScores={};
+  [1,2,3,4].forEach(s=>{
+    const crit=CRITERIA.filter(c=>c.section===s);
+    const raw=crit.reduce((a,c)=>a+(scoringValues[c.id]||0)*c.weight,0);
+    const maxR=crit.reduce((a,c)=>a+10*c.weight,0);
+    sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
+  });
+  const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
+  const tier=disqTriggered.length>0?'No bid':total>=80?'A':total>=60?'B':total>=40?'C':'No bid';
+  const payload={
+    client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
+    role:document.getElementById('f-role').value,phone:document.getElementById('f-phone').value,
+    email:document.getElementById('f-email').value,enduser:document.getElementById('f-enduser').value,
+    projname:document.getElementById('f-projname').value,
+    projaddr:{
+      street:document.getElementById('f-projstreet').value,
+      city:document.getElementById('f-projcity').value,
+      province:document.getElementById('f-projprovince').value,
+      postal:document.getElementById('f-projpostal').value,
+      country:document.getElementById('f-projcountry').value||'Canada'
+    },
+    estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
+    disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
+    section_scores:sectionScores,total_score:total,tier,
+    push_to_bid:document.getElementById('push-to-bid').checked,
+    status:'Active',
+    notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
+    override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
+    submitted_at:new Date().toISOString(),
+    ns_customer_id:selectedClientNSID,
+    procore_company_id:selectedClientProcoreID,
+    copilot_summary:await getCopilotSummary()
+  };
+  window._lastSubmitPayload = payload;
+  const destPanel = document.getElementById('dest-status');
+  destPanel.style.display = 'flex';
+  ['excel','netsuite','procore'].forEach(d => {
+    const el = document.getElementById('dest-'+d);
+    const icon = document.getElementById('dest-'+d+'-icon');
+    const retry = document.getElementById('dest-'+d+'-retry');
+    if(el) el.className = 'dest-indicator pending';
+    if(icon) icon.textContent = '⏳';
+    if(retry) retry.style.display = 'none';
+  });
+  if(!payload.push_to_bid){
+    const el=document.getElementById('dest-procore');
+    const icon=document.getElementById('dest-procore-icon');
+    if(el) el.className='dest-indicator skipped';
+    if(icon) icon.textContent='—';
+  }
+  const excelPromise = fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const nsPromise = fetch(NETSUITE_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const procorePromise = payload.push_to_bid
+    ? fetch(PROCORE_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    : Promise.resolve(null);
+  const [excelRes, nsRes, procoreRes] = await Promise.allSettled([excelPromise, nsPromise, procorePromise]);
+  function setIndicator(dest, ok, skipped) {
+    const el = document.getElementById('dest-'+dest);
+    const icon = document.getElementById('dest-'+dest+'-icon');
+    const retry = document.getElementById('dest-'+dest+'-retry');
+    if(skipped){ if(el) el.className='dest-indicator skipped'; if(icon) icon.textContent='—'; return; }
+    if(ok){ if(el) el.className='dest-indicator success'; if(icon) icon.textContent='✓'; if(retry) retry.style.display='none'; }
+    else { if(el) el.className='dest-indicator error'; if(icon) icon.textContent='✗'; if(retry) retry.style.display='inline-block'; }
+  }
+  setIndicator('excel', excelRes.status==='fulfilled', false);
+  setIndicator('netsuite', nsRes.status==='fulfilled', false);
+  setIndicator('procore', procoreRes.status==='fulfilled' && procoreRes.value !== null, !payload.push_to_bid);
+  const allOk = excelRes.status==='fulfilled' && nsRes.status==='fulfilled' && (!payload.push_to_bid || procoreRes.status==='fulfilled');
+  if(allOk){
+    status.textContent = payload.push_to_bid ? '✓ Submitted — Excel, NetSuite & Procore.' : '✓ Submitted — Excel & NetSuite.';
+  } else {
+    status.textContent = '⚠ Some destinations failed — see indicators below.';
+  }
+  btn.disabled=false;
+}
 async function declineRFQ(){
   const client=document.getElementById('f-client').value.trim();
   if(!client){alert('Client name is required.');return;}
@@ -1191,16 +1303,13 @@ async function declineRFQ(){
     procore_company_id: selectedClientProcoreID,
     copilot_summary: await getCopilotSummary()
   };
-  console.log('Submit payload ns_customer_id:', selectedClientNSID, 'procore_company_id:', selectedClientProcoreID);
 
-  if(SUBMIT_URL){
-    try{
-      await fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      status.textContent='Declined — saved to log.';
-    }catch(e){status.textContent='Saved locally (submit failed).';}
-  } else {
-    status.textContent='Declined — saved locally.';
-  }
+  const [excelRes, nsRes] = await Promise.allSettled([
+    fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),
+    fetch(NETSUITE_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+  ]);
+  const allOk = excelRes.status==='fulfilled' && nsRes.status==='fulfilled';
+  status.textContent = allOk ? 'Declined — saved to Excel & NetSuite.' : '⚠ Decline partially saved — check indicators.';
 
   btn.disabled=false;
   // Form intentionally not cleared — estimator can verify and resubmit if needed
@@ -1237,77 +1346,40 @@ Respond with a short bullet list of learnings only, or NONE.`;
   }
 }
 
-async function submitRFQ(){
-  const client=document.getElementById('f-client').value.trim();
-  if(!client){alert('Client name is required.');return;}
-  const btn=document.getElementById('submit-btn');
-  const status=document.getElementById('submit-status');
-  btn.disabled=true;
-  status.innerHTML='<span class="spinner"></span> Submitting…';
-  const disqTriggered=DISQUALIFIERS.filter((_,i)=>document.getElementById('disq-'+i)?.checked);
-  const scoringValues={};
-  const scoringLabels={};
-  CRITERIA.forEach(c=>{
-    const el=document.getElementById('crit-'+c.id);
-    if(el&&el.selectedIndex>0){scoringValues[c.id]=parseInt(el.value)||0;scoringLabels[c.id]=el.options[el.selectedIndex].text;}
-    else{scoringValues[c.id]=0;scoringLabels[c.id]='';}
-  });
-  const sectionScores={};
-  [1,2,3,4].forEach(s=>{
-    const crit=CRITERIA.filter(c=>c.section===s);
-    const raw=crit.reduce((a,c)=>a+(scoringValues[c.id]||0)*c.weight,0);
-    const maxR=crit.reduce((a,c)=>a+10*c.weight,0);
-    sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
-  });
-  const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
-  const tier=disqTriggered.length>0?'No bid':total>=80?'A':total>=60?'B':total>=40?'C':'No bid';
-  const payload={
-    client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
-    role:document.getElementById('f-role').value,phone:document.getElementById('f-phone').value,
-    email:document.getElementById('f-email').value,enduser:document.getElementById('f-enduser').value,
-    projname:document.getElementById('f-projname').value,
-    projaddr:{
-      street:document.getElementById('f-projstreet').value,
-      city:document.getElementById('f-projcity').value,
-      province:document.getElementById('f-projprovince').value,
-      postal:document.getElementById('f-projpostal').value,
-      country:document.getElementById('f-projcountry').value||'Canada'
-    },
-    estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
-    disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
-    section_scores:sectionScores,total_score:total,tier,
-    push_to_bid:document.getElementById('push-to-bid').checked,
-    status:'Active',
-    notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
-    override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
-    submitted_at:new Date().toISOString(),
-    ns_customer_id: selectedClientNSID,
-    procore_company_id: selectedClientProcoreID,
-    copilot_summary: await getCopilotSummary()
-  };
-  console.log('Submit payload ns_customer_id:', selectedClientNSID);
-  if(SUBMIT_URL){
-    try{
-      await fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      status.textContent='✓ Submitted — Excel & NetSuite saved.';
-      // Fire Procore flow if push_to_bid is true
-      if(payload.push_to_bid && PROCORE_FLOW_URL) {
-        status.textContent='✓ Excel & NetSuite saved. Creating Procore bid...';
-        try {
-          await fetch(PROCORE_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-          status.textContent='✓ Submitted — Excel, NetSuite & Procore bid created.';
-        } catch(pe) {
-          status.textContent='✓ Excel & NetSuite saved. Procore bid failed — retry manually.';
-          console.error('Procore flow error:', pe);
-        }
-      }
+async function retryDest(dest) {
+  const payload = window._lastSubmitPayload;
+  if(!payload) { alert('No previous submission found — please resubmit.'); return; }
+
+  const btn = document.getElementById('dest-' + dest + '-retry');
+  const iconEl = document.getElementById('dest-' + dest + '-icon');
+  const el = document.getElementById('dest-' + dest);
+  if(btn) btn.style.display = 'none';
+  if(iconEl) iconEl.textContent = '⏳';
+  if(el) el.className = 'dest-indicator pending';
+
+  try {
+    let url;
+    if(dest === 'excel') url = SUBMIT_URL;
+    else if(dest === 'netsuite') url = NETSUITE_FLOW_URL;
+    else if(dest === 'procore') url = PROCORE_FLOW_URL;
+
+    if(!url) { 
+      if(iconEl) iconEl.textContent = '✗';
+      if(el) el.className = 'dest-indicator error';
+      if(btn) btn.style.display = 'inline-block';
+      return;
     }
-    catch(e){status.textContent='Saved locally (submit failed).';}
-  } else {
-    status.textContent='Saved locally — submit flow not configured yet.';
+
+    await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    if(iconEl) iconEl.textContent = '✓';
+    if(el) el.className = 'dest-indicator success';
+    if(btn) btn.style.display = 'none';
+  } catch(e) {
+    if(iconEl) iconEl.textContent = '✗';
+    if(el) el.className = 'dest-indicator error';
+    if(btn) btn.style.display = 'inline-block';
+    console.error('Retry failed:', dest, e);
   }
-  btn.disabled=false;
-  // Form intentionally not cleared — estimator can verify and resubmit if needed
 }
 
 function clearForm(){
@@ -1328,6 +1400,7 @@ function clearForm(){
   document.getElementById('low-tier-confirm').style.display = 'none';
   document.getElementById('submit-btn').disabled = true;
   document.getElementById('submit-status').textContent='';
+  const ds=document.getElementById('dest-status'); if(ds) ds.style.display='none';
   updateScore();
 }
 
