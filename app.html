@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Classified Skua</div>
+  <div class="header-version">Recon Ptarmigan</div>
 </header>
 
 <div class="container">
@@ -428,6 +428,7 @@
 <script>
 const PARSE_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/28c6532b40ee45f59d23a8ee78217718/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=t_AMdNtwhFDEFxxteKzIn_FqMWhB-DAgKnn5TLf9-5U';
 const SUBMIT_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b9ba180c27f54b0fa8e9e1a14b414849/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Ip1IUAn05FwFx5DkMER4Hbezgu_7wLT6o1t30sEPO0E';
+const PROCORE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/9279180a5e8e4c9b8e2758391e178f7d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=67n79vxffs7yuFfAZWw0PfR1UDMIzDtNNKuR2-gnTkg';
 const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/36e245ab3607424db54d370e2a50db6f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bSx33cjfWXoCfpEcvLKrbElLImlUqVAPDfhCgvrrhC0';
 
 
@@ -1286,7 +1287,21 @@ async function submitRFQ(){
   };
   console.log('Submit payload ns_customer_id:', selectedClientNSID);
   if(SUBMIT_URL){
-    try{await fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});status.textContent='✓ Submitted successfully.';}
+    try{
+      await fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      status.textContent='✓ Submitted — Excel & NetSuite saved.';
+      // Fire Procore flow if push_to_bid is true
+      if(payload.push_to_bid && PROCORE_FLOW_URL) {
+        status.textContent='✓ Excel & NetSuite saved. Creating Procore bid...';
+        try {
+          await fetch(PROCORE_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+          status.textContent='✓ Submitted — Excel, NetSuite & Procore bid created.';
+        } catch(pe) {
+          status.textContent='✓ Excel & NetSuite saved. Procore bid failed — retry manually.';
+          console.error('Procore flow error:', pe);
+        }
+      }
+    }
     catch(e){status.textContent='Saved locally (submit failed).';}
   } else {
     status.textContent='Saved locally — submit flow not configured yet.';
