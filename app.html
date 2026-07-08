@@ -259,7 +259,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Covert Wolverine</div>
+  <div class="header-version">Classified Skua</div>
 </header>
 
 <div class="container">
@@ -327,7 +327,7 @@
         <div class="card-header"><span class="card-title">Client contact info</span></div>
         <div class="field-grid">
           <div class="field"><label>Estimator</label>
-            <select id="f-estimator"><option value="">Select…</option><option>Warren</option><option>Alfonso</option></select>
+            <select id="f-estimator"><option value="">Select…</option><option>Warren</option><option>Alfonso</option><option>Peter</option></select>
           </div>
           <div class="field"><label>Bid received date</label><input type="date" id="f-date"></div>
           <div class="field"><label>First name</label><input type="text" id="f-fname" placeholder=""></div>
@@ -339,7 +339,11 @@
           <div class="field"><label>Email</label><input type="text" id="f-email" placeholder=""></div>
           <div class="field"><label>End user</label><input type="text" id="f-enduser" placeholder="If different from client"></div>
           <div class="field"><label>Project name</label><input type="text" id="f-projname" placeholder=""></div>
-          <div class="field" style="grid-column:span 2"><label>Project address</label><input type="text" id="f-projaddr" placeholder=""></div>
+          <div class="field" style="grid-column:span 2"><label>Street address</label><input type="text" id="f-projstreet" placeholder="123 Main St"></div>
+          <div class="field"><label>City</label><input type="text" id="f-projcity" placeholder="Toronto"></div>
+          <div class="field"><label>Province / State</label><input type="text" id="f-projprovince" placeholder="ON"></div>
+          <div class="field"><label>Postal / ZIP</label><input type="text" id="f-projpostal" placeholder="M5V 2T6"></div>
+          <div class="field"><label>Country</label><input type="text" id="f-projcountry" value="Canada" placeholder="Canada"></div>
         </div>
       </div>
 
@@ -1084,7 +1088,18 @@ async function parseRFQ(){
     if(data.email) document.getElementById('f-email').value=data.email;
     if(data.enduser) document.getElementById('f-enduser').value=data.enduser;
     if(data.projname) document.getElementById('f-projname').value=data.projname;
-    if(data.projaddr) document.getElementById('f-projaddr').value=data.projaddr;
+    if(data.projaddr) {
+      if(typeof data.projaddr === 'object') {
+        if(data.projaddr.street) document.getElementById('f-projstreet').value=data.projaddr.street;
+        if(data.projaddr.city) document.getElementById('f-projcity').value=data.projaddr.city;
+        if(data.projaddr.province) document.getElementById('f-projprovince').value=data.projaddr.province;
+        if(data.projaddr.postal) document.getElementById('f-projpostal').value=data.projaddr.postal;
+        if(data.projaddr.country) document.getElementById('f-projcountry').value=data.projaddr.country;
+      } else {
+        // Legacy string — put in street field
+        document.getElementById('f-projstreet').value=data.projaddr;
+      }
+    }
     if(data.suggested_notes) document.getElementById('f-notes').value=data.suggested_notes;
     if(data.suggested_risks) document.getElementById('f-risks').value=data.suggested_risks;
     if(data.bid_received_date) document.getElementById('f-date').value=data.bid_received_date;
@@ -1155,7 +1170,14 @@ async function declineRFQ(){
     client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
     role:document.getElementById('f-role').value,phone:document.getElementById('f-phone').value,
     email:document.getElementById('f-email').value,enduser:document.getElementById('f-enduser').value,
-    projname:document.getElementById('f-projname').value,projaddr:document.getElementById('f-projaddr').value,
+    projname:document.getElementById('f-projname').value,
+    projaddr:{
+      street:document.getElementById('f-projstreet').value,
+      city:document.getElementById('f-projcity').value,
+      province:document.getElementById('f-projprovince').value,
+      postal:document.getElementById('f-projpostal').value,
+      country:document.getElementById('f-projcountry').value||'Canada'
+    },
     estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
@@ -1242,7 +1264,14 @@ async function submitRFQ(){
     client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
     role:document.getElementById('f-role').value,phone:document.getElementById('f-phone').value,
     email:document.getElementById('f-email').value,enduser:document.getElementById('f-enduser').value,
-    projname:document.getElementById('f-projname').value,projaddr:document.getElementById('f-projaddr').value,
+    projname:document.getElementById('f-projname').value,
+    projaddr:{
+      street:document.getElementById('f-projstreet').value,
+      city:document.getElementById('f-projcity').value,
+      province:document.getElementById('f-projprovince').value,
+      postal:document.getElementById('f-projpostal').value,
+      country:document.getElementById('f-projcountry').value||'Canada'
+    },
     estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
@@ -1267,8 +1296,9 @@ async function submitRFQ(){
 }
 
 function clearForm(){
-  ['f-fname','f-lname','f-phone','f-email','f-enduser','f-projname','f-projaddr','f-notes','f-risks','f-override','f-approver'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-fname','f-lname','f-phone','f-email','f-enduser','f-projname','f-projstreet','f-projcity','f-projprovince','f-projpostal','f-notes','f-risks','f-override','f-approver'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-client').value='';
+  const countryEl=document.getElementById('f-projcountry'); if(countryEl) countryEl.value='Canada';
   selectedClient='';
   selectedClientNSID='';
   selectedClientProcoreID='';
