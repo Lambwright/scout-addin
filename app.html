@@ -1240,8 +1240,8 @@ async function submitRFQ(){
     procorePromise.then(r => r ? r.json() : null)
   ]);
 
-  const excelOk = excelRes.status === 'fulfilled' && excelRes.value?.status === 'success';
-  const nsOk = nsRes.status === 'fulfilled' && nsRes.value?.status === 'success';
+  const excelOk = excelRes.status === 'fulfilled' && excelRes.value?.ItemInternalId !== undefined;
+  const nsOk = nsRes.status === 'fulfilled' &&    nsRes.value?.success === true &&    nsRes.value?.status === 204;  if(nsRes.value?.location) {   const nsId = nsRes.value.location.split('/').pop();   window._lastNSRecordId = nsId;   console.log('NetSuite Record ID:', nsId); }
   const procoreOk = !payload.push_to_bid || (
     procoreRes.status === 'fulfilled' &&
     procoreRes.value?.procore_bid_id
