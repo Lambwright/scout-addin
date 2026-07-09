@@ -1228,12 +1228,30 @@ async function submitRFQ(){
     if(el) el.className='dest-indicator skipped';
     if(icon) icon.textContent='—';
   }
-  const excelPromise = fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+ const excelPromise = fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const nsPromise = fetch(NETSUITE_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const procorePromise = payload.push_to_bid
     ? fetch(PROCORE_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     : Promise.resolve(null);
-  const [excelRes, nsRes, procoreRes] = await Promise.allSettled([excelPromise, nsPromise, procorePromise]);
+
+  const [excelRes, nsRes, procoreRes] = await Promise.allSettled([
+    excelPromise.then(r => r.json()),
+    nsPromise.then(r => r.json()),
+    procorePromise.then(r => r ? r.json() : null)
+  ]);
+
+  const excelOk = excelRes.status === 'fulfilled' && excelRes.value?.status === 'success';
+  const nsOk = nsRes.status === 'fulfilled' && nsRes.value?.status === 'success';
+  const procoreOk = !payload.push_to_bid || (
+    procoreRes.status === 'fulfilled' &&
+    procoreRes.value?.procore_bid_id
+  );
+
+  if(procoreRes.value?.procore_bid_id) {
+    window._lastProcoreBidId = procoreRes.value.procore_bid_id;
+    console.log('Procore Bid ID:', procoreRes.value.procore_bid_id);
+  }
+
   function setIndicator(dest, ok, skipped) {
     const el = document.getElementById('dest-'+dest);
     const icon = document.getElementById('dest-'+dest+'-icon');
@@ -1242,10 +1260,12 @@ async function submitRFQ(){
     if(ok){ if(el) el.className='dest-indicator success'; if(icon) icon.textContent='✓'; if(retry) retry.style.display='none'; }
     else { if(el) el.className='dest-indicator error'; if(icon) icon.textContent='✗'; if(retry) retry.style.display='inline-block'; }
   }
-  setIndicator('excel', excelRes.status==='fulfilled', false);
-  setIndicator('netsuite', nsRes.status==='fulfilled', false);
-  setIndicator('procore', procoreRes.status==='fulfilled' && procoreRes.value !== null, !payload.push_to_bid);
-  const allOk = excelRes.status==='fulfilled' && nsRes.status==='fulfilled' && (!payload.push_to_bid || procoreRes.status==='fulfilled');
+
+  setIndicator('excel', excelOk, false);
+  setIndicator('netsuite', nsOk, false);
+  setIndicator('procore', procoreOk, !payload.push_to_bid);
+
+  const allOk = excelOk && nsOk && procoreOk;
   if(allOk){
     status.textContent = payload.push_to_bid ? '✓ Submitted — Excel, NetSuite & Procore.' : '✓ Submitted — Excel & NetSuite.';
   } else {
