@@ -1319,20 +1319,52 @@ async function declineRFQ(){
     notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
     override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
     submitted_at:new Date().toISOString(),
-    ns_customer_id: selectedClientNSID,
-    procore_company_id: selectedClientProcoreID,
-    copilot_summary: await getCopilotSummary()
+    ns_customer_id:selectedClientNSID,
+    procore_company_id:selectedClientProcoreID,
+    copilot_summary:await getCopilotSummary()
   };
+  window._lastSubmitPayload = payload;
+
+  // Show dest-status panel — Excel and NetSuite only, Procore skipped
+  const destPanel = document.getElementById('dest-status');
+  destPanel.style.display = 'flex';
+  ['excel','netsuite'].forEach(d => {
+    const el = document.getElementById('dest-'+d);
+    const icon = document.getElementById('dest-'+d+'-icon');
+    const retry = document.getElementById('dest-'+d+'-retry');
+    if(el) el.className = 'dest-indicator pending';
+    if(icon) icon.textContent = '⏳';
+    if(retry) retry.style.display = 'none';
+  });
+  // Procore always skipped on decline
+  const procoreEl = document.getElementById('dest-procore');
+  const procoreIcon = document.getElementById('dest-procore-icon');
+  if(procoreEl) procoreEl.className = 'dest-indicator skipped';
+  if(procoreIcon) procoreIcon.textContent = '—';
 
   const [excelRes, nsRes] = await Promise.allSettled([
-    fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),
-    fetch(NETSUITE_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    fetch(SUBMIT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r => r.json()),
+    fetch(NETSUITE_FLOW_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r => r.json())
   ]);
-  const allOk = excelRes.status==='fulfilled' && nsRes.status==='fulfilled';
-  status.textContent = allOk ? 'Declined — saved to Excel & NetSuite.' : '⚠ Decline partially saved — check indicators.';
+
+  const excelOk = excelRes.status === 'fulfilled' && excelRes.value?.ItemInternalId !== undefined;
+  const nsOk = nsRes.status === 'fulfilled' && nsRes.value?.status === 'success';
+
+  function setIndicator(dest, ok) {
+    const el = document.getElementById('dest-'+dest);
+    const icon = document.getElementById('dest-'+dest+'-icon');
+    const retry = document.getElementById('dest-'+dest+'-retry');
+    if(ok){ if(el) el.className='dest-indicator success'; if(icon) icon.textContent='✓'; if(retry) retry.style.display='none'; }
+    else { if(el) el.className='dest-indicator error'; if(icon) icon.textContent='✗'; if(retry) retry.style.display='inline-block'; }
+  }
+
+  setIndicator('excel', excelOk);
+  setIndicator('netsuite', nsOk);
+
+  const allOk = excelOk && nsOk;
+  status.textContent = allOk ? 'Declined — saved to Excel & NetSuite.' : '⚠ Decline partially saved — see indicators below.';
 
   btn.disabled=false;
-  // Form intentionally not cleared — estimator can verify and resubmit if needed
 }
 
 async function getCopilotSummary(){
