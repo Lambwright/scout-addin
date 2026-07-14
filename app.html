@@ -1241,7 +1241,7 @@ async function submitRFQ(){
   ]);
 
   const excelOk = excelRes.status === 'fulfilled' && excelRes.value?.ItemInternalId !== undefined;
-  const nsOk = nsRes.status === 'fulfilled' &&    nsRes.value?.success === true &&    nsRes.value?.status === 204;  if(nsRes.value?.location) {   const nsId = nsRes.value.location.split('/').pop();   window._lastNSRecordId = nsId;   console.log('NetSuite Record ID:', nsId); }
+  const nsOk = nsRes.status === 'fulfilled' && nsRes.value?.status === 'success';
   const procoreOk = !payload.push_to_bid || (
     procoreRes.status === 'fulfilled' &&
     procoreRes.value?.procore_bid_id
@@ -1394,7 +1394,7 @@ async function retryDest(dest) {
 
     let ok = false;
     if(dest === 'excel') ok = data?.ItemInternalId !== undefined;
-    else if(dest === 'netsuite') ok = data?.success === true && data?.status === 204;
+    else if(dest === 'netsuite') ok = data?.status === 'success';
     else if(dest === 'procore') ok = !!data?.procore_bid_id;
 
     if(ok) {
@@ -1402,11 +1402,7 @@ async function retryDest(dest) {
       if(el) el.className = 'dest-indicator success';
       if(btn) btn.style.display = 'none';
       // Log IDs
-      if(dest === 'netsuite' && data?.location) {
-        window._lastNSRecordId = data.location.split('/').pop();
-        console.log('NetSuite Record ID:', window._lastNSRecordId);
-      }
-      if(dest === 'procore' && data?.procore_bid_id) {
+     if(dest === 'procore' && data?.procore_bid_id) {
         window._lastProcoreBidId = data.procore_bid_id;
         console.log('Procore Bid ID:', window._lastProcoreBidId);
       }
