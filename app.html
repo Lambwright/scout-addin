@@ -1369,7 +1369,6 @@ Respond with a short bullet list of learnings only, or NONE.`;
 async function retryDest(dest) {
   const payload = window._lastSubmitPayload;
   if(!payload) { alert('No previous submission found — please resubmit.'); return; }
-
   const btn = document.getElementById('dest-' + dest + '-retry');
   const iconEl = document.getElementById('dest-' + dest + '-icon');
   const el = document.getElementById('dest-' + dest);
@@ -1377,23 +1376,46 @@ async function retryDest(dest) {
   if(iconEl) iconEl.textContent = '⏳';
   if(el) el.className = 'dest-indicator pending';
 
-  try {
-    let url;
-    if(dest === 'excel') url = SUBMIT_URL;
-    else if(dest === 'netsuite') url = NETSUITE_FLOW_URL;
-    else if(dest === 'procore') url = PROCORE_FLOW_URL;
+  let url;
+  if(dest === 'excel') url = SUBMIT_URL;
+  else if(dest === 'netsuite') url = NETSUITE_FLOW_URL;
+  else if(dest === 'procore') url = PROCORE_FLOW_URL;
 
-    if(!url) { 
+  if(!url) {
+    if(iconEl) iconEl.textContent = '✗';
+    if(el) el.className = 'dest-indicator error';
+    if(btn) btn.style.display = 'inline-block';
+    return;
+  }
+
+  try {
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const data = await r.json();
+
+    let ok = false;
+    if(dest === 'excel') ok = data?.ItemInternalId !== undefined;
+    else if(dest === 'netsuite') ok = data?.success === true && data?.status === 204;
+    else if(dest === 'procore') ok = !!data?.procore_bid_id;
+
+    if(ok) {
+      if(iconEl) iconEl.textContent = '✓';
+      if(el) el.className = 'dest-indicator success';
+      if(btn) btn.style.display = 'none';
+      // Log IDs
+      if(dest === 'netsuite' && data?.location) {
+        window._lastNSRecordId = data.location.split('/').pop();
+        console.log('NetSuite Record ID:', window._lastNSRecordId);
+      }
+      if(dest === 'procore' && data?.procore_bid_id) {
+        window._lastProcoreBidId = data.procore_bid_id;
+        console.log('Procore Bid ID:', window._lastProcoreBidId);
+      }
+    } else {
       if(iconEl) iconEl.textContent = '✗';
       if(el) el.className = 'dest-indicator error';
       if(btn) btn.style.display = 'inline-block';
-      return;
+      console.error('Retry response not valid:', dest, data);
     }
-
-    await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-    if(iconEl) iconEl.textContent = '✓';
-    if(el) el.className = 'dest-indicator success';
-    if(btn) btn.style.display = 'none';
   } catch(e) {
     if(iconEl) iconEl.textContent = '✗';
     if(el) el.className = 'dest-indicator error';
@@ -1401,7 +1423,6 @@ async function retryDest(dest) {
     console.error('Retry failed:', dest, e);
   }
 }
-
 function clearForm(){
   ['f-fname','f-lname','f-phone','f-email','f-enduser','f-projname','f-projstreet','f-projcity','f-projprovince','f-projpostal','f-notes','f-risks','f-override','f-approver'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-client').value='';
