@@ -265,7 +265,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Siege Narwhal</div>
+  <div class="header-version">Blitz Muskox</div>
 </header>
 
 <div class="container">
@@ -455,7 +455,11 @@ const NETSUITE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.envi
 const PROCORE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/9279180a5e8e4c9b8e2758391e178f7d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=67n79vxffs7yuFfAZWw0PfR1UDMIzDtNNKuR2-gnTkg';
 const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/36e245ab3607424db54d370e2a50db6f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bSx33cjfWXoCfpEcvLKrbElLImlUqVAPDfhCgvrrhC0';
 
-
+const ESTIMATOR_PROCORE_IDS = {
+  'Warren': '3960584',
+  'Alfonso': '9130897',
+  'Peter': '1215888'
+};
 
 // Auto-grow textareas (notes/decision only, not parse area)
 function autoGrow(el) {
@@ -1200,7 +1204,7 @@ async function submitRFQ(){
       postal:document.getElementById('f-projpostal').value,
       country:document.getElementById('f-projcountry').value||'Canada'
     },
-    estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
+    estimator:document.getElementById('f-estimator').value, estimator_procore_id:ESTIMATOR_PROCORE_IDS[document.getElementById('f-estimator').value]||'', bid_date:document.getElementById('f-date').value,
     bid_due_date:document.getElementById('f-bid-due-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
@@ -1313,7 +1317,7 @@ async function declineRFQ(){
       postal:document.getElementById('f-projpostal').value,
       country:document.getElementById('f-projcountry').value||'Canada'
     },
-    estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
+    estimator:document.getElementById('f-estimator').value, estimator_procore_id:ESTIMATOR_PROCORE_IDS[document.getElementById('f-estimator').value]||'', bid_date:document.getElementById('f-date').value,
     bid_due_date:document.getElementById('f-bid-due-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
