@@ -336,6 +336,7 @@
             <select id="f-estimator"><option value="">Select…</option><option>Warren</option><option>Alfonso</option><option>Peter</option></select>
           </div>
           <div class="field"><label>Bid received date</label><input type="date" id="f-date"></div>
+          <div class="field"><label>Bid due date</label><input type="date" id="f-bid-due-date"></div>
           <div class="field"><label>First name</label><input type="text" id="f-fname" placeholder=""></div>
           <div class="field"><label>Last name</label><input type="text" id="f-lname" placeholder=""></div>
           <div class="field"><label>Role</label>
@@ -1200,6 +1201,7 @@ async function submitRFQ(){
       country:document.getElementById('f-projcountry').value||'Canada'
     },
     estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
+    bid_due_date:document.getElementById('f-bid-due-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
     push_to_bid:document.getElementById('push-to-bid').checked,
@@ -1312,6 +1314,7 @@ async function declineRFQ(){
       country:document.getElementById('f-projcountry').value||'Canada'
     },
     estimator:document.getElementById('f-estimator').value,bid_date:document.getElementById('f-date').value,
+    bid_due_date:document.getElementById('f-bid-due-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
     push_to_bid:false,
@@ -1459,7 +1462,7 @@ function clearForm(){
   selectedClientNSID='';
   selectedClientProcoreID='';
   ['f-estimator','f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('f-date').value='';
+  document.getElementById('f-date').value=''; document.getElementById('f-bid-due-date').value='';
   CRITERIA.forEach(c=>{const el=document.getElementById('crit-'+c.id);if(el)el.value='';});
   DISQUALIFIERS.forEach((_,i)=>{const cb=document.getElementById('disq-'+i);if(cb)cb.checked=false;const w=document.getElementById('disq-wrap-'+i);if(w)w.classList.remove('triggered');});
   document.getElementById('push-to-bid').checked=false;
