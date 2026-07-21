@@ -1476,7 +1476,7 @@ async function retryDest(dest) {
     const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     const data = await r.json();
 
-   let ok = false;
+    let ok = false;
     if(dest === 'excel') {
       ok = data?.ItemInternalId !== undefined;
     } else if(dest === 'netsuite') {
@@ -1500,7 +1500,29 @@ async function retryDest(dest) {
       }
     } else if(dest === 'procore') {
       ok = !!data?.procore_bid_id;
+      if(data?.procore_bid_id) {
+        window._lastProcoreBidId = data.procore_bid_id;
+        document.getElementById('id-procore').textContent = `Procore: ${data.procore_bid_id}`;
+        document.getElementById('record-ids').style.display = 'flex';
+        console.log('Procore Bid ID (retry):', data.procore_bid_id);
+        if(window._lastNSOpportunityId) {
+          fetch(LINK_RECORDS_URL, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              ns_opportunity_id: window._lastNSOpportunityId,
+              procore_bid_id: data.procore_bid_id
+            })
+          }).then(r => r.json()).then(d => console.log('Link Records result:', d))
+            .catch(e => console.error('Link Records failed:', e));
+        }
+      }
     }
+
+    if(ok) {
+      if(iconEl) iconEl.textContent = '✓';
+      if(el) el.className = 'dest-indicator success';
+      if(btn) btn.style.display = 'none';
     } else {
       if(iconEl) iconEl.textContent = '✗';
       if(el) el.className = 'dest-indicator error';
