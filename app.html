@@ -265,7 +265,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Gnarly Tapir</div>
+  <div class="header-version">Stoked Axolotl</div>
 </header>
 
 <div class="container">
@@ -644,8 +644,11 @@ function activateCopilot(rfqEmail, parsedData) {
   document.getElementById('copilot-empty').style.display = 'none';
   document.getElementById('copilot-send').disabled = false;
   document.getElementById('copilot-input').disabled = false;
-  document.getElementById('parse-btn').disabled = true;
-  document.getElementById('parse-btn').title = 'Form locked to this RFQ — clear form to start new';
+  const parseBtn = document.getElementById('parse-btn');
+  parseBtn.disabled = true;
+  parseBtn.style.opacity = '0.4';
+  parseBtn.style.cursor = 'not-allowed';
+  parseBtn.title = 'Form locked to this RFQ — clear form to start new';
   
   copilotHistory = [];
   
@@ -1305,7 +1308,14 @@ const nsId = window._lastNSOpportunityId;
   } else {
     status.textContent = '⚠ Some destinations failed — see indicators below.';
   }
-  btn.disabled=false;
+if(!allOk) btn.disabled=false;
+if(allOk) {
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('submit-btn').style.opacity = '0.4';
+  document.getElementById('submit-btn').style.cursor = 'not-allowed';
+  document.getElementById('decline-btn').disabled = true;
+  document.getElementById('decline-btn').style.opacity = '0.4';
+  document.getElementById('decline-btn').style.cursor = 'not-allowed';
 }
 async function declineRFQ(){
   const client=document.getElementById('f-client').value.trim();
@@ -1400,6 +1410,13 @@ async function declineRFQ(){
   status.textContent = allOk ? 'Declined — saved to Excel & NetSuite.' : '⚠ Decline partially saved — see indicators below.';
 
   btn.disabled=false;
+  if(allOk) {
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('submit-btn').style.opacity = '0.4';
+  document.getElementById('submit-btn').style.cursor = 'not-allowed';
+  document.getElementById('decline-btn').disabled = true;
+  document.getElementById('decline-btn').style.opacity = '0.4';
+  document.getElementById('decline-btn').style.cursor = 'not-allowed';
 }
 
 async function getCopilotSummary(){
@@ -1461,7 +1478,7 @@ async function retryDest(dest) {
 
     let ok = false;
     if(dest === 'excel') ok = data?.ItemInternalId !== undefined;
-    else if(dest === 'netsuite') ok = data?.status === 'success';
+    else if(dest === 'netsuite') {   ok = data?.status === 'success' && !!data?.ns_opportunity_id;   if(data?.ns_opportunity_id) {     window._lastNSOpportunityId = data.ns_opportunity_id;     document.getElementById('id-netsuite').textContent = `NS: ${data.ns_opportunity_id}`;     document.getElementById('record-ids').style.display = 'flex';     console.log('NS Opportunity ID (retry):', data.ns_opportunity_id);     // Fire Link Records if Procore ID already exists     if(window._lastProcoreBidId) {       fetch(LINK_RECORDS_URL, {         method: 'POST',         headers: {'Content-Type': 'application/json'},         body: JSON.stringify({           ns_opportunity_id: data.ns_opportunity_id,           procore_bid_id: window._lastProcoreBidId         })       }).then(r => r.json()).then(d => console.log('Link Records result:', d))         .catch(e => console.error('Link Records failed:', e));     }   } }
     else if(dest === 'procore') ok = !!data?.procore_bid_id;
 
     if(ok) {
@@ -1494,7 +1511,8 @@ function clearForm(){
   selectedClientNSID='';
   selectedClientProcoreID='';
   ['f-estimator','f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('f-date').value=''; document.getElementById('f-bid-due-date').value='';
+  document.getElementById('f-date').value='';
+  document.getElementById('f-bid-due-date').value='';
   CRITERIA.forEach(c=>{const el=document.getElementById('crit-'+c.id);if(el)el.value='';});
   DISQUALIFIERS.forEach((_,i)=>{const cb=document.getElementById('disq-'+i);if(cb)cb.checked=false;const w=document.getElementById('disq-wrap-'+i);if(w)w.classList.remove('triggered');});
   document.getElementById('push-to-bid').checked=false;
@@ -1505,8 +1523,18 @@ function clearForm(){
   document.getElementById('submit-btn').disabled = true;
   document.getElementById('submit-status').textContent='';
   const ds=document.getElementById('dest-status'); if(ds) ds.style.display='none';
-  document.getElementById('parse-btn').disabled = false;
-  document.getElementById('parse-btn').title = '';
+  const parseBtn=document.getElementById('parse-btn');
+  parseBtn.disabled = false;
+  parseBtn.title = '';
+  parseBtn.style.opacity = '';
+  parseBtn.style.cursor = '';
+  const submitBtn=document.getElementById('submit-btn');
+  submitBtn.style.opacity='';
+  submitBtn.style.cursor='';
+  const declineBtn=document.getElementById('decline-btn');
+  declineBtn.disabled=false;
+  declineBtn.style.opacity='';
+  declineBtn.style.cursor='';
   window._lastNSOpportunityId = null;
   window._lastProcoreBidId = null;
   const ri=document.getElementById('record-ids'); if(ri) ri.style.display='none';
