@@ -1317,6 +1317,7 @@ if(allOk) {
   document.getElementById('decline-btn').style.opacity = '0.4';
   document.getElementById('decline-btn').style.cursor = 'not-allowed';
 }
+}
 async function declineRFQ(){
   const client=document.getElementById('f-client').value.trim();
   if(!client){alert('Client name is required.');return;}
@@ -1418,7 +1419,7 @@ async function declineRFQ(){
   document.getElementById('decline-btn').style.opacity = '0.4';
   document.getElementById('decline-btn').style.cursor = 'not-allowed';
 }
-
+}
 async function getCopilotSummary(){
   if(!copilotHistory.length || copilotHistory.length < 3) return '';
   
