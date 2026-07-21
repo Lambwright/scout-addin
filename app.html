@@ -265,7 +265,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Blitz Muskox</div>
+  <div class="header-version">Mellow Capybara</div>
 </header>
 
 <div class="container">
@@ -406,6 +406,10 @@
           <button id="dest-procore-retry" onclick="retryDest('procore')" style="display:none;font-size:10px;padding:2px 6px;margin-left:4px;background:none;border:1px solid var(--red-border);color:var(--red);border-radius:4px;cursor:pointer;">Retry</button>
         </div>
       </div>
+      <div id="record-ids" style="display:none;margin-top:6px;font-size:11px;color:var(--text-tertiary);flex-wrap:wrap;gap:16px;">
+        <span id="id-netsuite"></span>
+        <span id="id-procore"></span>
+      </div>
       <div style="display:none"><!-- placeholder to fix extra closing div -->
       </div>
     </div>
@@ -455,6 +459,8 @@ const NETSUITE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.envi
 const PROCORE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/9279180a5e8e4c9b8e2758391e178f7d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=67n79vxffs7yuFfAZWw0PfR1UDMIzDtNNKuR2-gnTkg';
 const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/36e245ab3607424db54d370e2a50db6f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bSx33cjfWXoCfpEcvLKrbElLImlUqVAPDfhCgvrrhC0';
 
+const LINK_RECORDS_URL = ''; // SCOUT - Link Records — add URL when flow is built
+  
 const ESTIMATOR_PROCORE_IDS = {
   'Warren': '3960584',
   'Alfonso': '9130897',
@@ -639,7 +645,9 @@ function activateCopilot(rfqEmail, parsedData) {
   document.getElementById('copilot-empty').style.display = 'none';
   document.getElementById('copilot-send').disabled = false;
   document.getElementById('copilot-input').disabled = false;
-
+  document.getElementById('parse-btn').disabled = true;
+  document.getElementById('parse-btn').title = 'Form locked to this RFQ — clear form to start new';
+  
   copilotHistory = [];
   
   // Alfonso gets a special greeting
@@ -1247,7 +1255,7 @@ async function submitRFQ(){
   ]);
 
   const excelOk = excelRes.status === 'fulfilled' && excelRes.value?.ItemInternalId !== undefined;
-  const nsOk = nsRes.status === 'fulfilled' && nsRes.value?.status === 'success';
+  const nsOk = nsRes.status === 'fulfilled' && nsRes.value?.status === 'success' && !!nsRes.value?.ns_opportunity_id;  if(nsRes.value?.ns_opportunity_id) {   window._lastNSOpportunityId = nsRes.value.ns_opportunity_id;   console.log('NS Opportunity ID:', window._lastNSOpportunityId); }
   const procoreOk = !payload.push_to_bid || (
     procoreRes.status === 'fulfilled' &&
     procoreRes.value?.procore_bid_id
@@ -1257,7 +1265,28 @@ async function submitRFQ(){
     window._lastProcoreBidId = procoreRes.value.procore_bid_id;
     console.log('Procore Bid ID:', procoreRes.value.procore_bid_id);
   }
+const nsId = window._lastNSOpportunityId;
+  const procoreId = window._lastProcoreBidId;
 
+  if(nsId) document.getElementById('id-netsuite').textContent = `NS: ${nsId}`;
+  if(procoreId) document.getElementById('id-procore').textContent = `Procore: ${procoreId}`;
+  if(nsId || procoreId) document.getElementById('record-ids').style.display = 'flex';
+
+  if(nsId && procoreId) {
+    fetch(LINK_RECORDS_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        ns_opportunity_id: nsId,
+        procore_bid_id: procoreId
+      })
+    }).then(r => r.json()).then(d => {
+      console.log('Link Records result:', d);
+    }).catch(e => {
+      console.error('Link Records failed:', e);
+    });
+  }
+  
   function setIndicator(dest, ok, skipped) {
     const el = document.getElementById('dest-'+dest);
     const icon = document.getElementById('dest-'+dest+'-icon');
@@ -1477,6 +1506,13 @@ function clearForm(){
   document.getElementById('submit-btn').disabled = true;
   document.getElementById('submit-status').textContent='';
   const ds=document.getElementById('dest-status'); if(ds) ds.style.display='none';
+  document.getElementById('parse-btn').disabled = false;
+  document.getElementById('parse-btn').title = '';
+  window._lastNSOpportunityId = null;
+  window._lastProcoreBidId = null;
+  const ri=document.getElementById('record-ids'); if(ri) ri.style.display='none';
+  document.getElementById('id-netsuite').textContent='';
+  document.getElementById('id-procore').textContent='';
   updateScore();
 }
 
