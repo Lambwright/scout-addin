@@ -875,13 +875,13 @@ async function loadClients(retryCount = 0) {
   body: JSON.stringify({
     method: 'POST',
     path: '/query/v1/suiteql',
-    data: { q: "SELECT id, companyname, custrecord_r_it_entity_pc_id FROM customer WHERE isinactive = 'F' ORDER BY companyname ASC" }
+    data: { q: "SELECT id, companyname FROM customer WHERE isinactive = 'F' ORDER BY companyname ASC" }
   })
 });
 const data = await res.json();
     let records;
     if(data.items && Array.isArray(data.items)) {
-      records = data.items.map(r => ({ id: String(r.id || ''), name: (r.companyname || '').trim(), procoreId: r.custrecord_r_it_entity_pc_id || '' }));
+      records = data.items.map(r => ({ id: String(r.id || ''), name: (r.companyname || '').trim(), procoreId: '' }));
     } else if(Array.isArray(data)) {
       records = data.map(r => ({ id: null, name: (r['Name'] || '').trim(), procoreId: '' }));
     } else {
