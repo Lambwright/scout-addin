@@ -1144,7 +1144,7 @@ async function parseRFQ(){
     if(data.phone) document.getElementById('f-phone').value=data.phone;
     if(data.email) document.getElementById('f-email').value=data.email;
     if(data.enduser) document.getElementById('f-enduser').value=data.enduser;
-    if(data.projname) document.getElementById('f-projname').value=data.projname;
+    if(data.projname) { document.getElementById('f-projname').value=data.projname; updateProjNameCounter(); }
     if(data.projaddr) {
       if(typeof data.projaddr === 'object') {
         if(data.projaddr.street) document.getElementById('f-projstreet').value=data.projaddr.street;
@@ -1413,6 +1413,11 @@ async function declineRFQ(){
 
   const excelOk = excelRes.status === 'fulfilled' && excelRes.value?.ItemInternalId !== undefined;
   const nsOk = nsRes.status === 'fulfilled' && nsRes.value?.status === 'success';
+  if(nsRes.value?.ns_opportunity_id) {
+    window._lastNSOpportunityId = nsRes.value.ns_opportunity_id;
+    document.getElementById('id-netsuite').textContent = `NS: ${nsRes.value.ns_opportunity_id}`;
+    document.getElementById('record-ids').style.display = 'flex';
+  }
 
   function setIndicator(dest, ok) {
     const el = document.getElementById('dest-'+dest);
@@ -1592,6 +1597,15 @@ function clearForm(){
   const ri=document.getElementById('record-ids'); if(ri) ri.style.display='none';
   document.getElementById('id-netsuite').textContent='';
   document.getElementById('id-procore').textContent='';
+  copilotHistory = [];
+  currentRFQContext = '';
+  totalTokensUsed = 0;
+  document.getElementById('copilot-messages').innerHTML = '';
+  document.getElementById('copilot-empty').style.display = 'flex';
+  document.getElementById('copilot-send').disabled = true;
+  document.getElementById('copilot-input').disabled = true;
+  const sub = document.querySelector('.copilot-sub');
+  if(sub) sub.textContent = 'Powered by Claude';
   updateScore();
 }
 
