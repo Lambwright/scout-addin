@@ -265,7 +265,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Stoked Axolotl</div>
+  <div class="header-version">Chill Vicuña</div>
 </header>
 
 <div class="container">
@@ -329,23 +329,24 @@
         <span class="toggle-hint">Auto-checked at Tier A or B — override manually</span>
       </div>
 
+      <!-- PROJECT NAME — prominent, standalone -->
+      <div class="card" style="margin-bottom:12px;">
+        <div class="field">
+          <label style="font-size:13px;font-weight:700;color:var(--text-primary);">Project name <span class="field-req">*</span> <span style="font-size:10px;color:var(--text-tertiary);font-weight:400" id="projname-counter">79 chars remaining</span></label>
+          <input type="text" id="f-projname" maxlength="79" placeholder="e.g. ON – Client – Venue/Location" oninput="updateProjNameCounter()" style="font-size:15px;padding:10px 13px;">
+        </div>
+      </div>
+
+      <!-- PROJECT INFO -->
       <div class="card">
-        <div class="card-header"><span class="card-title">Client contact info</span></div>
+        <div class="card-header"><span class="card-title">Project info</span></div>
         <div class="field-grid">
           <div class="field"><label>Estimator</label>
             <select id="f-estimator"><option value="">Select…</option><option>Warren</option><option>Alfonso</option><option>Peter</option></select>
           </div>
           <div class="field"><label>Bid received date</label><input type="date" id="f-date"></div>
           <div class="field"><label>Bid due date</label><input type="date" id="f-bid-due-date"></div>
-          <div class="field"><label>First name</label><input type="text" id="f-fname" placeholder=""></div>
-          <div class="field"><label>Last name</label><input type="text" id="f-lname" placeholder=""></div>
-          <div class="field"><label>Role</label>
-            <select id="f-role"><option value="">Select…</option><option>Owner/Decision Maker</option><option>Project Manager</option><option>Project Coordinator</option><option>Estimator</option><option>Other/Unknown</option></select>
-          </div>
-          <div class="field"><label>Phone</label><input type="text" id="f-phone" placeholder=""></div>
-          <div class="field"><label>Email</label><input type="text" id="f-email" placeholder=""></div>
           <div class="field"><label>End user</label><input type="text" id="f-enduser" placeholder="If different from client"></div>
-          <div class="field"><label>Project name</label><input type="text" id="f-projname" placeholder=""></div>
           <div class="field" style="grid-column:span 2"><label>Street address</label><input type="text" id="f-projstreet" placeholder="123 Main St"></div>
           <div class="field"><label>City</label><input type="text" id="f-projcity" placeholder="Toronto"></div>
           <div class="field"><label>Province / State</label><input type="text" id="f-projprovince" placeholder="ON"></div>
@@ -354,6 +355,21 @@
         </div>
       </div>
 
+      <!-- CLIENT / CONTACT INFO -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Client contact info</span></div>
+        <div class="field-grid">
+          <div class="field"><label>First name</label><input type="text" id="f-fname" placeholder=""></div>
+          <div class="field"><label>Last name</label><input type="text" id="f-lname" placeholder=""></div>
+          <div class="field"><label>Role</label>
+            <select id="f-role"><option value="">Select…</option><option>Owner/Decision Maker</option><option>Project Manager</option><option>Project Coordinator</option><option>Estimator</option><option>Other/Unknown</option></select>
+          </div>
+          <div class="field"><label>Phone</label><input type="text" id="f-phone" placeholder=""></div>
+          <div class="field"><label>Email</label><input type="text" id="f-email" placeholder=""></div>
+        </div>
+      </div>
+
+      <!-- DISQUALIFIERS -->
       <div class="card">
         <div class="card-header">
           <span class="card-title disq-title">
@@ -366,6 +382,7 @@
 
       <div id="scoring-sections"></div>
 
+      <!-- NOTES & DECISION -->
       <div class="card">
         <div class="card-header"><span class="card-title">Notes &amp; decision</span></div>
         <div class="field-grid" style="grid-template-columns:1fr;">
@@ -477,7 +494,14 @@ document.addEventListener('input', function(e) {
   }
 });
 
-
+function updateProjNameCounter() {
+  const el = document.getElementById('f-projname');
+  const counter = document.getElementById('projname-counter');
+  if(!counter) return;
+  const remaining = 79 - el.value.length;
+  counter.textContent = `${remaining} chars remaining`;
+  counter.style.color = remaining < 10 ? 'var(--red)' : 'var(--text-tertiary)';
+}
 
 // RFQ attachment for parse area
 let pendingRFQAttachment = null;
@@ -859,8 +883,16 @@ let selectedClientProcoreID = '';
 
 async function loadClients(retryCount = 0) {
   try {
-    const res = await fetch(GET_CLIENTS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-    const data = await res.json();
+    const res = await fetch('https://netsuite.ben-a90.workers.dev', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    method: 'POST',
+    path: '/query/v1/suiteql',
+    data: { q: "SELECT id, companyname, custrecord_r_it_entity_pc_id FROM customer WHERE isinactive = 'F' ORDER BY companyname ASC" }
+  })
+});
+const data = await res.json();
     let records;
     if(data.items && Array.isArray(data.items)) {
       records = data.items.map(r => ({ id: String(r.id || ''), name: (r.companyname || '').trim(), procoreId: r.custrecord_r_it_entity_pc_id || '' }));
@@ -877,7 +909,7 @@ async function loadClients(retryCount = 0) {
     allClients = records.filter(r => r.name).sort((a,b) => a.name.localeCompare(b.name));
     renderDropdown(allClients);
     // If we got suspiciously few records, retry once after a delay
-    if(allClients.length < 1200 && retryCount < 2) {
+    if(allClients.length < 1400 && retryCount < 2) {
       console.log(`Only got ${allClients.length} clients, retrying...`);
       setTimeout(() => loadClients(retryCount + 1), 2000);
     }
