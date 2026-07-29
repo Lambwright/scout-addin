@@ -1526,8 +1526,7 @@ async function retryDest(dest) {
       ok = !!data?.procore_bid_id;
       if(data?.procore_bid_id) {
         window._lastProcoreBidId = data.procore_bid_id;
-        document.getElementById('id-procore').textContent = `Procore: ${data.procore_bid_id}`;
-        document.getElementById('record-ids').style.display = 'flex';
+        document.getElementById('id-procore').innerHTML = `<a href="https://us02.procore.com/562949953508586/company/estimating/bid_board/projects/${data.procore_bid_id}" target="_blank" style="color:var(--green);text-decoration:none;font-size:11px;">↗ Open in Procore</a>`;        document.getElementById('record-ids').style.display = 'flex';
         console.log('Procore Bid ID (retry):', data.procore_bid_id);
         if(window._lastNSOpportunityId) {
           fetch(LINK_RECORDS_URL, {
