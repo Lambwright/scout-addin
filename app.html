@@ -1289,7 +1289,7 @@ const nsId = window._lastNSOpportunityId;
   const procoreId = window._lastProcoreBidId;
 
   if(nsId) document.getElementById('id-netsuite').textContent = `NS: ${nsId}`;
-  if(procoreId) document.getElementById('id-procore').innerHTML = `<a href="https://us02.procore.com/562949953508586/company/estimating/bid_board/projects/${procoreId}" target="_blank" style="color:var(--green);text-decoration:none;font-size:11px;">↗ Open in Procore</a>`;
+  if(procoreId) document.getElementById('id-procore').innerHTML = `<a href="https://us02.procore.com/webclients/host/companies/562949953508586/tools/bid-board/project/${procoreId}/details" target="_blank" style="color:var(--green);text-decoration:none;font-size:11px;">↗ Open in Procore</a>`;
   if(nsId || procoreId) document.getElementById('record-ids').style.display = 'flex';
 
   if(nsId && procoreId) {
