@@ -251,9 +251,11 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Breezy Penguin</div>
+  <div class="header-version">Serene Chinchilla</div>
 </header>
 
+  <button onclick="document.getElementById('help-modal').style.display='flex'" style="position:fixed;top:12px;right:16px;z-index:999;background:none;border:1px solid var(--border-input);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--text-secondary);cursor:pointer;letter-spacing:0.04em;">? Help</button>
+  
 <div class="container">
   <div class="nav-wrap">
     <nav class="nav">
@@ -665,14 +667,11 @@ function activateCopilot(rfqEmail, parsedData) {
   // Alfonso gets a special greeting
   const isAlfonso = document.getElementById('f-estimator')?.value === 'Alfonso';
 
-  const systemContext = `You are SCOUT, an RFQ qualification copilot for Einbau Services Ltd., a custom architectural millwork installation company in Whitby, Ontario.
-
+ const systemContext = `You are SCOUT, an RFQ qualification copilot for Einbau Services Ltd., a custom architectural millwork installation company in Whitby, Ontario.
 The estimating team has just parsed an RFQ email. Here is what was extracted:
 ${JSON.stringify(parsedData, null, 2)}
-
 Original email:
 ${rfqEmail}
-
 Your role:
 - Review what was extracted and identify any gaps or missing information
 - Suggest specific questions the estimator should ask the client to fill gaps
@@ -680,45 +679,42 @@ Your role:
 - Help the estimator score the RFQ by asking clarifying questions
 - If the estimator pastes new information, help update the assessment
 - Be concise and practical — these are busy estimators
-
 Important context about Einbau Services Ltd.:
-
 OPERATIONS & GEOGRAPHY:
 - Based in Whitby, Ontario. Works across Canada.
 - PRIMARY markets with local management: GTA (Toronto and surroundings), Muskoka, Calgary, Vancouver, and the Maritimes. These are NOT travel concerns — treat as core regions.
 - SECONDARY markets (network coverage, less robust): rest of Alberta, rest of BC, rest of Ontario outside GTA/Muskoka, Quebec, the Prairies, other municipalities. Flag these as moderate mobilization, not out of region.
 - Territories and truly remote locations = out of region.
 - Key Toronto submarkets: Yorkdale Mall, Oakridge Mall, Yorkville, Forest Hill, Rosedale, Hogg's Hollow, Bridle Path. These are premium retail/residential — flag as high-value opportunities.
-
 SCHEDULING & LABOUR:
 - 6am start times are completely standard in the industry — never flag as a concern.
 - Starting AFTER 8am in Toronto is actually a concern due to commuting and parking difficulty.
 - Overtime rates apply for nights and Saturdays. Double time for Sundays and holidays.
 - Einbau does NOT self-perform union work.
-
 SCOPE:
 - Core: architectural millwork installation, supply & install millwork, retail rollouts, commercial fit-outs, high-end residential.
 - Retail rollouts (especially national chains) are high-value opportunities.
 - Fabrication-only scopes (no install) are outside core scope — flag these.
-
 SCORING GUIDANCE:
 - Geographic fit: GTA/Muskoka/Calgary/Vancouver/Maritimes = "Within core service region"
 - Geographic fit: Rest of AB/BC/ON/QC/Prairies = "Reachable – moderate mobilization"
 - Timeline: 6am starts = no concern. After-hours/weekend = note overtime implications, not a disqualifier.
 - Sector: Yorkdale, Oakridge, Yorkville, Forest Hill, Rosedale, Bridle Path = luxury/high-value, score accordingly.
-
+SCORING RESTRAINT — CRITICAL:
+- Only update scoring fields when there is clear, specific evidence in the email or conversation to support that score.
+- Do NOT assume a strong client relationship, past project history, or high win potential unless the email explicitly states it or the estimator confirms it.
+- Do NOT infer that Einbau has worked at a specific location before based on the location alone — a project at Yorkdale does not mean Einbau has a relationship with that client or has worked there before.
+- Payment record and win potential scores should be left unset until the estimator provides specific information about this client's history. Do not guess.
+- When in doubt on a scoring field, ask the estimator rather than filling it in with an assumption.
 RESPONSE STYLE: Write in plain, concise prose. Avoid markdown tables, excessive headers, and heavy bullet formatting. Use short paragraphs. Get to the point. Estimators are busy — every extra word costs their time and our API budget. Bullets are fine for short lists but don't over-format simple points.
-
 Start with a brief summary of what you found, what fields are missing, and any scoring suggestions based on the above context.
-
 IMPORTANT: You can update form fields directly. When you want to update a field, include a JSON block at the END of your message in this exact format:
 <form_update>{"field":"field_id","value":"new value"}</form_update>
-
-Available field IDs: f-client, f-fname, f-lname, f-phone, f-email, f-enduser, f-projname, f-projaddr, f-notes, f-risks, f-date
+Available field IDs: f-fname, f-lname, f-phone, f-email, f-enduser, f-projname, f-projaddr, f-notes, f-risks, f-date
 For scoring dropdowns use: crit-client_award_status, crit-payment_record, crit-win_potential, crit-relationship_strength, crit-client_loyalty, crit-client_type, crit-project_type_match, crit-sector_alignment, crit-geographic_fit, crit-scope_clarity, crit-timeline_realism, crit-rollout_scale, crit-project_value, crit-potential_margin, crit-budget_clarity, crit-installer_saturation, crit-estimating_effort, crit-crew_availability, crit-pipeline_conflict, crit-operational_complexity
 For scoring dropdowns, value should be the numeric score: 10, 5, 3, or 1.
-You can include multiple form_update blocks. Only update fields when you have clear evidence from the email or conversation.`;
-
+You can include multiple form_update blocks. Only update fields when you have clear, specific evidence from the email or conversation — never assume or infer.
+You are also available to help the estimator troubleshoot the SCOUT form itself. If they ask why something isn't working, walk them through the following: if the client dropdown is missing companies, suggest hitting the ↻ refresh button; if Parse with Claude isn't working, suggest checking their internet connection or filling the form manually; if submission indicators show red, suggest hitting the Retry button for that destination; if all indicators are stuck, suggest refreshing the page and resubmitting. Remind them that the form works fully without Claude — all records will still be created in Procore, NetSuite, and Excel even if parsing and copilot are unavailable. For adding new clients to the directory, direct them to josh@einbau.ca. For any technical issues with the app itself, direct them to ben@einbau.ca. If an estimator mentions they received an RFQ from a portal like BidConnect or Merx that has limited information, proactively suggest they download any attached documents and upload them to this chat — you can read PDFs, drawings, and images to help fill in scoring gaps that the portal listing didn't include.`;
   copilotHistory.push({ role: 'user', content: systemContext });
   if(isAlfonso) {
     document.getElementById('copilot-input').placeholder = '¡Aliméntame, Alfonso!';
@@ -1646,6 +1642,69 @@ setTimeout(loadClients, 300);
       }
     }
   }
+  <div id="help-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;max-width:640px;width:90%;max-height:85vh;overflow-y:auto;padding:32px;position:relative;">
+    <button onclick="document.getElementById('help-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:var(--text-tertiary);cursor:pointer;">✕</button>
+    <h2 style="margin:0 0 4px 0;font-size:16px;font-weight:700;color:var(--text-primary);">SCOUT — Quick Start Guide</h2>
+    <p style="margin:0 0 20px 0;font-size:12px;color:var(--text-tertiary);">Bid prequalification app — Einbau Services Ltd.</p>
+
+    <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;line-height:1.6;color:var(--text-secondary);">
+
+      <div>
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">What is SCOUT?</div>
+        <div>SCOUT helps you qualify incoming RFQs by scoring them and automatically logging them to Excel, NetSuite, and Procore. You don't need to know anything about those systems — SCOUT handles all of it.</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">Step 1 — Select the client</div>
+        <div>Type the client name in the Client field and select from the dropdown. The client must exist in our NetSuite directory. If they don't appear, click the ↻ refresh button — if some companies are showing but not all, a refresh usually loads the full list. If the client still doesn't appear after refreshing, contact <a href="mailto:josh@einbau.ca" style="color:var(--green);">josh@einbau.ca</a> to have them added.</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">Step 2 — Paste the RFQ</div>
+        <div>Copy the full RFQ email and paste it into the Parse box. If you're replying to an email thread, include the date headers from the original message — this helps Claude identify the bid received date and context from earlier in the conversation.</div>
+        <div style="margin-top:8px;">For portal RFQs (BidConnect, Merx, etc.) — log into the portal, open the project, and copy all the visible text from the page (Ctrl+A, Ctrl+C). Paste it into the Parse box. Claude will extract the relevant information even if the format looks different from a regular email. Portal RFQs are often light on details but come with attached documents — download any attachments and upload them to the Copilot chat using the 📎 button. Claude can read PDFs, drawings, and images and will extract scope details that weren't in the portal listing. The more documents you provide, the better Claude can score the RFQ.</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">Step 3 — Parse with Claude</div>
+        <div>Hit Parse with Claude. Claude will read the email and fill in as many fields as it can. Review everything — Claude can make mistakes, especially on project names and addresses. The project name should follow our naming convention: <span style="font-family:monospace;background:var(--bg-input);padding:1px 6px;border-radius:4px;">Province – Client – Location/Scope</span> (e.g. ON – Trisect – Yorkdale Unit 304).</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">Step 4 — Fill in the scoring form</div>
+        <div>Work through the four scoring sections. Each dropdown has options from best to worst. If you're unsure how to score something, ask the Copilot on the right — just type naturally like you're asking a colleague. You can also attach drawings or scope documents directly in the Copilot chat to help Claude better understand the project scope.</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">Step 5 — Leadership override (if applicable)</div>
+        <div>If the scoring results in a No Bid tier but leadership has decided to pursue the project anyway, use the Leadership Override field at the bottom of the Notes section. Enter the reason for pursuing despite the score, and the name of the person who approved it. Both fields must be completed together — the Submit button will not activate with only one filled in.</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">Step 6 — Submit or Decline</div>
+        <div>Hit <strong>Submit to bid board</strong> to send to Excel, NetSuite, and Procore, or <strong>Decline to bid</strong> to send to Excel and NetSuite only. Green checkmarks confirm each destination. If a destination shows red, hit the Retry button for that item.</div>
+      </div>
+
+      <div style="background:var(--bg-input);border-radius:8px;padding:12px 16px;">
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">If Claude isn't working</div>
+        <div>No problem — the form is still fully useable. Fill in all fields manually and hit Submit or Decline as normal. Records will still be created in Procore, NetSuite, and Excel. Only the Parse and Copilot features require Claude — everything else works independently.</div>
+      </div>
+
+      <div>
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">Something went wrong?</div>
+        <ul style="margin:4px 0 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4px;">
+          <li>Client not in dropdown → click ↻ refresh. If still missing, contact <a href="mailto:josh@einbau.ca" style="color:var(--green);">josh@einbau.ca</a> to have them added.</li>
+          <li>Red indicator with Retry button → click Retry for that destination</li>
+          <li>Parse didn't work → check your internet connection and try again, or fill the form manually</li>
+          <li>All three indicators stuck → refresh the page and resubmit</li>
+          <li>Any other issue → contact <a href="mailto:ben@einbau.ca" style="color:var(--green);">ben@einbau.ca</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
 })();
 </script>
 </body>
