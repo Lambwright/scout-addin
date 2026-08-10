@@ -931,6 +931,28 @@ function selectClient(name, nsId, procoreId) {
   selectedClientProcoreID = procoreId || '';
   document.getElementById('f-client').value = name;
   closeDropdown();
+  
+  // Fetch Procore company ID from NetSuite if not already populated
+  if(nsId && !procoreId) {
+    fetch('https://netsuite.ben-a90.workers.dev', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        method: 'GET',
+        path: `/customer/${nsId}?expandSubResources=false`,
+        data: null
+      })
+    })
+    .then(r => r.json())
+    .then(d => {
+      const pcId = d?.custrecord_r_it_entity_pc_id;
+      if(pcId) {
+        selectedClientProcoreID = String(pcId);
+        console.log('Procore company ID fetched:', selectedClientProcoreID);
+      }
+    })
+    .catch(e => console.error('Failed to fetch Procore company ID:', e));
+  }
 }
 
 function openDropdown() {
