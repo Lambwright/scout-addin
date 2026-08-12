@@ -333,7 +333,7 @@
             <select id="f-estimator"><option value="">Select…</option><option>Warren</option><option>Alfonso</option><option>Peter</option></select>
           </div>
           <div class="field"><label>Bid received date</label><input type="date" id="f-date"></div>
-          <div class="field"><label>Bid due date</label><input type="date" id="f-bid-due-date"></div>
+          <div class="field"><label>Bid due date</label><input type="date" id="f-bid-due-date" onchange="checkPipelineConflict(this.value)"></div>
           <div class="field"><label>End user</label><input type="text" id="f-enduser" placeholder="If different from client"></div>
           <div class="field" style="grid-column:span 2"><label>Street address</label><input type="text" id="f-projstreet" placeholder="123 Main St"></div>
           <div class="field"><label>City</label><input type="text" id="f-projcity" placeholder="Toronto"></div>
@@ -494,7 +494,34 @@ function updateProjNameCounter() {
   counter.textContent = `${remaining} chars remaining`;
   counter.style.color = remaining < 10 ? 'var(--red)' : 'var(--text-tertiary)';
 }
-
+function checkPipelineConflict(dateStr) {
+  const field = document.getElementById('pipeline-conflict-field');
+  const list = document.getElementById('pipeline-conflicts-list');
+  if(!dateStr) { field.style.display='none'; list.innerHTML=''; return; }
+  const parts = dateStr.split('-');
+  const checkDate = `${parts[1]}/${parts[2]}/${parts[0]}`;
+  fetch('https://netsuite.ben-a90.workers.dev', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      method: 'POST',
+      path: '/query/v1/suiteql',
+      data: { q: `SELECT id, title FROM opportunity WHERE expectedclosedate = '${checkDate}' AND subsidiary = '2'` }
+    })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if(d?.items?.length > 0) {
+      list.innerHTML = d.items.map(i => `• ${i.title}`).join('<br>');
+      field.style.display = 'block';
+    } else {
+      field.style.display = 'none';
+      list.innerHTML = '';
+    }
+  })
+  .catch(() => { field.style.display='none'; });
+}
+  
 // RFQ attachment for parse area
 let pendingRFQAttachment = null;
 
@@ -1183,35 +1210,7 @@ async function parseRFQ(){
     if(data.bid_due_date) document.getElementById('f-bid-due-date').value=data.bid_due_date;
     status.textContent='✓ Parsed — review and adjust before submitting.';
 
-    // Check for pipeline conflicts on bid due date
-    if(data.bid_due_date) {
-      const parts = data.bid_due_date.split('-');
-      const checkDate = `${parts[1]}/${parts[2]}/${parts[0]}`;
-      fetch('https://netsuite.ben-a90.workers.dev', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          method: 'POST',
-          path: '/query/v1/suiteql',
-          data: { q: `SELECT id, title FROM opportunity WHERE expectedclosedate = '${checkDate}' AND subsidiary = '2'` }
-        })
-      })
-      .then(r => r.json())
-      .then(d => {
-        const field = document.getElementById('pipeline-conflict-field');
-        const list = document.getElementById('pipeline-conflicts-list');
-        if(d?.items?.length > 0) {
-          list.innerHTML = d.items.map(i => `• ${i.title}`).join('<br>');
-          field.style.display = 'block';
-        } else {
-          field.style.display = 'none';
-          list.innerHTML = '';
-        }
-      })
-      .catch(() => {
-        document.getElementById('pipeline-conflict-field').style.display = 'none';
-      });
-    }
+  if(data.bid_due_date) checkPipelineConflict(data.bid_due_date);
 
     activateCopilot(email, data);
   }catch(e){
