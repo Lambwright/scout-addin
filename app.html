@@ -251,7 +251,7 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Serene Chinchilla</div>
+  <div class="header-version">Nimble Tapir</div>
 </header>
 
   <button onclick="document.getElementById('help-modal').style.display='flex'" style="position:fixed;top:12px;right:140px;z-index:999;background:none;border:1px solid var(--border-input);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--text-secondary);cursor:pointer;letter-spacing:0.04em;">? Help</button>
@@ -371,15 +371,19 @@
       <div id="scoring-sections"></div>
 
       <!-- NOTES & DECISION -->
-      <div class="card">
-        <div class="card-header"><span class="card-title">Notes &amp; decision</span></div>
-        <div class="field-grid" style="grid-template-columns:1fr;">
-          <div class="field"><label>Strategic context / opportunity notes</label><textarea id="f-notes" rows="3"></textarea></div>
-          <div class="field"><label>Risk flags or concerns</label><textarea id="f-risks" rows="2"></textarea></div>
-          <div class="field"><label>Leadership override reason</label><textarea id="f-override" rows="2" oninput="checkSubmitGate()"></textarea></div>
-          <div class="field"><label>Override approved by</label><input type="text" id="f-approver" placeholder="Name" oninput="checkSubmitGate()"></div>
-        </div>
-      </div>
+     <div class="card">
+  <div class="card-header"><span class="card-title">Notes &amp; decision</span></div>
+  <div class="field-grid" style="grid-template-columns:1fr;">
+    <div class="field"><label>Strategic context / opportunity notes</label><textarea id="f-notes" rows="3"></textarea></div>
+    <div class="field"><label>Risk flags or concerns</label><textarea id="f-risks" rows="2"></textarea></div>
+    <div class="field" id="pipeline-conflict-field" style="display:none">
+      <label>Bids due same day</label>
+      <div id="pipeline-conflicts-list" style="background:var(--bg-input);border:1px solid var(--border-input);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text-secondary);line-height:1.8;"></div>
+    </div>
+    <div class="field"><label>Leadership override reason</label><textarea id="f-override" rows="2" oninput="checkSubmitGate()"></textarea></div>
+    <div class="field"><label>Override approved by</label><input type="text" id="f-approver" placeholder="Name" oninput="checkSubmitGate()"></div>
+  </div>
+</div>
 
       <div class="low-tier-confirm" id="low-tier-confirm" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--red-light);border:1px solid var(--red-border);border-radius:var(--radius-sm);align-items:center;gap:8px;font-size:12px;color:var(--text-primary);">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--red)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -1155,7 +1159,6 @@ async function parseRFQ(){
     const text=await response.text();
     const clean=text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
     const data=JSON.parse(clean);
-    if(data.client) document.getElementById('f-client').value=data.client;
     if(data.fname) document.getElementById('f-fname').value=data.fname;
     if(data.lname) document.getElementById('f-lname').value=data.lname;
     if(data.role) document.getElementById('f-role').value=data.role;
@@ -1171,14 +1174,45 @@ async function parseRFQ(){
         if(data.projaddr.postal) document.getElementById('f-projpostal').value=data.projaddr.postal;
         if(data.projaddr.country) document.getElementById('f-projcountry').value=data.projaddr.country;
       } else {
-        // Legacy string — put in street field
         document.getElementById('f-projstreet').value=data.projaddr;
       }
     }
     if(data.suggested_notes) document.getElementById('f-notes').value=data.suggested_notes;
     if(data.suggested_risks) document.getElementById('f-risks').value=data.suggested_risks;
     if(data.bid_received_date) document.getElementById('f-date').value=data.bid_received_date;
+    if(data.bid_due_date) document.getElementById('f-bid-due-date').value=data.bid_due_date;
     status.textContent='✓ Parsed — review and adjust before submitting.';
+
+    // Check for pipeline conflicts on bid due date
+    if(data.bid_due_date) {
+      const parts = data.bid_due_date.split('-');
+      const checkDate = `${parts[1]}/${parts[2]}/${parts[0]}`;
+      fetch('https://netsuite.ben-a90.workers.dev', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          method: 'POST',
+          path: '/query/v1/suiteql',
+          data: { q: `SELECT id, title FROM opportunity WHERE expectedclosedate = '${checkDate}' AND subsidiary = '2'` }
+        })
+      })
+      .then(r => r.json())
+      .then(d => {
+        const field = document.getElementById('pipeline-conflict-field');
+        const list = document.getElementById('pipeline-conflicts-list');
+        if(d?.items?.length > 0) {
+          list.innerHTML = d.items.map(i => `• ${i.title}`).join('<br>');
+          field.style.display = 'block';
+        } else {
+          field.style.display = 'none';
+          list.innerHTML = '';
+        }
+      })
+      .catch(() => {
+        document.getElementById('pipeline-conflict-field').style.display = 'none';
+      });
+    }
+
     activateCopilot(email, data);
   }catch(e){
     status.textContent='Parse failed — check connection and try again.';
@@ -1186,7 +1220,7 @@ async function parseRFQ(){
   }
   btn.disabled=false;
 }
-
+  
 
 // Save copilot insights
 function saveSnippet() {
@@ -1613,7 +1647,9 @@ function clearForm(){
   window._lastProcoreBidId = null;
   const ri=document.getElementById('record-ids'); if(ri) ri.style.display='none';
   document.getElementById('id-netsuite').textContent='';
-  document.getElementById('id-procore').textContent='';
+  document.getElementById('id-procore').innerHTML='';
+  const pcf=document.getElementById('pipeline-conflict-field'); if(pcf) pcf.style.display='none';
+  document.getElementById('pipeline-conflicts-list').innerHTML='';
   copilotHistory = [];
   currentRFQContext = '';
   totalTokensUsed = 0;
