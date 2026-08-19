@@ -249,8 +249,6 @@
     .login-error { font-size: 12px; color: var(--red); margin-top: 10px; min-height: 16px; }
 
     /* New Company (INTAKE) */
-    .new-company-link { font-size: 11px; color: var(--green-dark); cursor: pointer; font-weight: 600; }
-    .new-company-link:hover { text-decoration: underline; }
     .intake-status { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; margin-top: 6px; }
     .intake-status.error { color: var(--red); }
   </style>
@@ -312,7 +310,7 @@
         <textarea class="parse-textarea" id="rfq-email" placeholder="Paste the full RFQ email here…"></textarea>
         <div class="parse-controls">
           <div class="client-wrap">
-            <label class="client-label">Bid requester / client <span class="field-req">*</span> <span style="font-size:10px;color:var(--text-tertiary);cursor:pointer;font-weight:400" onclick="loadClients()" title="Refresh client list">↻</span> <span class="new-company-link" onclick="openIntakePopout()">+ New company</span></label>
+            <label class="client-label">Bid requester / client <span class="field-req">*</span> <span style="font-size:10px;color:var(--text-tertiary);cursor:pointer;font-weight:400" onclick="loadClients()" title="Refresh client list">↻</span></label>
             <div class="combobox-wrap" id="client-combobox">
               <input type="text" class="combobox-input" id="f-client" placeholder="Search clients…" autocomplete="off" oninput="filterClients(this.value)" onfocus="openDropdown()" onblur="closeDropdownDelayed()">
               <div class="combobox-dropdown" id="client-dropdown">
@@ -326,6 +324,10 @@
             Parse with Claude
           </button>
           <span id="parse-status" class="status-msg"></span>
+          <button class="btn btn-green" onclick="openIntakePopout()" id="new-company-btn" style="margin-left:auto;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            New Company
+          </button>
         </div>
       </div>
 
@@ -1228,6 +1230,16 @@ function openDropdown() {
   document.getElementById('client-dropdown').classList.add('open');
 }
 
+// Guards against submitting with a typed-but-never-selected (or selected-then-edited)
+// client, which sends an empty NetSuite entity id and gets rejected server-side.
+function validateClientSelected(typedClient) {
+  if (!selectedClientNSID || selectedClient !== typedClient) {
+    alert('Select the client from the dropdown list — typing the name alone isn\'t enough. If it\'s not appearing, hit ↻ refresh, or use "+ New Company" if it doesn\'t exist yet.');
+    return false;
+  }
+  return true;
+}
+
 function filterClients_filtered() {
   const val = document.getElementById('f-client').value;
   return val ? allClients.filter(c => c.name.toLowerCase().includes(val.toLowerCase())) : allClients;
@@ -1488,6 +1500,7 @@ function exportSnippets() {
 async function submitRFQ(){
   const client=document.getElementById('f-client').value.trim();
   if(!client){alert('Client name is required.');return;}
+  if(!validateClientSelected(client)){return;}
   const btn=document.getElementById('submit-btn');
   const status=document.getElementById('submit-status');
   btn.disabled=true;
@@ -1627,6 +1640,7 @@ if(allOk) {
 async function declineRFQ(){
   const client=document.getElementById('f-client').value.trim();
   if(!client){alert('Client name is required.');return;}
+  if(!validateClientSelected(client)){return;}
   const btn=document.getElementById('decline-btn');
   const status=document.getElementById('submit-status');
   btn.disabled=true;
