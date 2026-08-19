@@ -240,6 +240,19 @@
       .copilot-column { width: 100%; position: static; }
       .copilot-card { height: 400px; max-height: 400px; }
     }
+
+    /* Login (Einbau ID) */
+    .login-wrap { min-height: calc(100vh - 56px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .login-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 32px; width: 100%; max-width: 340px; }
+    .login-title { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--green); margin-bottom: 4px; }
+    .login-sub { font-size: 11px; color: var(--text-tertiary); margin-bottom: 20px; }
+    .login-error { font-size: 12px; color: var(--red); margin-top: 10px; min-height: 16px; }
+
+    /* New Company (INTAKE) */
+    .new-company-link { font-size: 11px; color: var(--green-dark); cursor: pointer; font-weight: 600; }
+    .new-company-link:hover { text-decoration: underline; }
+    .intake-status { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+    .intake-status.error { color: var(--red); }
   </style>
 </head>
 <body>
@@ -251,11 +264,35 @@
     <span class="header-badge-name">SCOUT</span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
   </div>
-  <div class="header-version">Nimble Tapir</div>
+  <div class="header-version" id="scout-header-version">Nimble Tapir</div>
+  <div id="scout-user-badge" style="display:none;align-items:center;gap:12px;margin-left:16px;">
+    <span id="scout-user-name" style="font-size:11px;color:rgba(255,255,255,0.6);"></span>
+    <button onclick="document.getElementById('help-modal').style.display='flex'" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.6);cursor:pointer;letter-spacing:0.04em;">? Help</button>
+    <button onclick="doScoutLogout()" class="btn btn-ghost" style="padding:4px 12px;font-size:11px;">Log out</button>
+  </div>
 </header>
 
-  <button onclick="document.getElementById('help-modal').style.display='flex'" style="position:fixed;top:12px;right:140px;z-index:999;background:none;border:1px solid var(--border-input);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--text-secondary);cursor:pointer;letter-spacing:0.04em;">? Help</button>
-  
+<div id="screen-login" class="login-wrap" style="display:none;">
+  <div class="login-card">
+    <div class="login-title">EINBAU ID</div>
+    <div class="login-sub">Sign in to use SCOUT</div>
+    <form onsubmit="doScoutLogin(event)">
+      <div class="field" style="margin-bottom:12px;">
+        <label>Username</label>
+        <input type="text" id="scout-login-username" autocomplete="username" required>
+      </div>
+      <div class="field" style="margin-bottom:16px;">
+        <label>Password</label>
+        <input type="password" id="scout-login-password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" id="scout-login-btn" class="btn btn-green" style="width:100%;justify-content:center;">Sign in</button>
+      <div id="scout-login-error" class="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="screen-app" style="display:none;">
+
 <div class="container">
   <div class="nav-wrap">
     <nav class="nav">
@@ -275,13 +312,14 @@
         <textarea class="parse-textarea" id="rfq-email" placeholder="Paste the full RFQ email here…"></textarea>
         <div class="parse-controls">
           <div class="client-wrap">
-            <label class="client-label">Bid requester / client <span class="field-req">*</span> <span style="font-size:10px;color:var(--text-tertiary);cursor:pointer;font-weight:400" onclick="loadClients()" title="Refresh client list">↻</span></label>
+            <label class="client-label">Bid requester / client <span class="field-req">*</span> <span style="font-size:10px;color:var(--text-tertiary);cursor:pointer;font-weight:400" onclick="loadClients()" title="Refresh client list">↻</span> <span class="new-company-link" onclick="openIntakePopout()">+ New company</span></label>
             <div class="combobox-wrap" id="client-combobox">
               <input type="text" class="combobox-input" id="f-client" placeholder="Search clients…" autocomplete="off" oninput="filterClients(this.value)" onfocus="openDropdown()" onblur="closeDropdownDelayed()">
               <div class="combobox-dropdown" id="client-dropdown">
                 <div class="combobox-loading">Loading clients…</div>
               </div>
             </div>
+            <div id="intake-status" class="intake-status" style="display:none;"></div>
           </div>
           <button class="btn btn-green" onclick="parseRFQ()" id="parse-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -474,6 +512,196 @@ const ESTIMATOR_PROCORE_IDS = {
   'Alfonso': '9130897',
   'Peter': '1215888'
 };
+
+// ---------- Einbau ID (shared login) ----------
+const AUTH_URL = 'https://auth.ben-a90.workers.dev';
+const INTAKE_URL = 'https://lambwright.github.io/scout-intake/';
+const INTAKE_ORIGIN = 'https://lambwright.github.io';
+
+let scoutAuthToken = null;
+let scoutCurrentUser = null;
+
+document.addEventListener('DOMContentLoaded', checkExistingScoutSession);
+
+async function checkExistingScoutSession() {
+  const stored = localStorage.getItem('einbau_scout_token');
+  if (stored) {
+    const result = await verifyScoutSession(stored);
+    if (result.valid) {
+      scoutAuthToken = result.refreshedToken || stored;
+      if (result.refreshedToken) localStorage.setItem('einbau_scout_token', result.refreshedToken);
+      scoutCurrentUser = result.user;
+      showScoutApp();
+      return;
+    }
+    localStorage.removeItem('einbau_scout_token');
+  }
+  showScoutLogin();
+}
+
+async function verifyScoutSession(token) {
+  try {
+    const res = await fetch(`${AUTH_URL}/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({})
+    });
+    return await res.json();
+  } catch (e) { return { valid: false, error: 'network_error' }; }
+}
+
+function showScoutLogin() {
+  document.getElementById('screen-login').style.display = 'flex';
+  document.getElementById('screen-app').style.display = 'none';
+  document.getElementById('scout-user-badge').style.display = 'none';
+}
+
+function showScoutApp() {
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('screen-app').style.display = 'block';
+  document.getElementById('scout-user-badge').style.display = 'flex';
+  document.getElementById('scout-user-name').textContent = scoutCurrentUser ? scoutCurrentUser.displayName : '';
+  initScoutApp();
+}
+
+async function doScoutLogin(e) {
+  e.preventDefault();
+  const username = document.getElementById('scout-login-username').value.trim();
+  const password = document.getElementById('scout-login-password').value;
+  const errEl = document.getElementById('scout-login-error');
+  const btn = document.getElementById('scout-login-btn');
+  errEl.textContent = '';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${AUTH_URL}/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.token) {
+      errEl.textContent = data.error === 'rate_limited' ? 'Too many attempts — try again later.' : 'Invalid username or password.';
+      btn.disabled = false;
+      return;
+    }
+    scoutAuthToken = data.token;
+    scoutCurrentUser = data.user;
+    localStorage.setItem('einbau_scout_token', data.token);
+    showScoutApp();
+  } catch (err) {
+    errEl.textContent = 'Could not reach the login server — check your connection.';
+  }
+  btn.disabled = false;
+}
+
+function doScoutLogout() {
+  scoutAuthToken = null; scoutCurrentUser = null;
+  localStorage.removeItem('einbau_scout_token');
+  showScoutLogin();
+}
+
+// ---------- INTAKE popout (New Company) ----------
+let intakePopoutWin = null;
+let intakePopoutTimeout = null;
+let intakePollTimer = null;
+let intakeListenerAttached = false;
+
+function openIntakePopout() {
+  if (!scoutAuthToken) { alert('Please sign in first.'); return; }
+
+  intakePopoutWin = window.open(INTAKE_URL + '?mode=popout', 'einbau_intake', 'width=560,height=850,menubar=no,toolbar=no');
+  if (!intakePopoutWin) {
+    showIntakeError('Popup blocked — allow popups for this site and try again.');
+    return;
+  }
+
+  showIntakePending('Waiting for INTAKE…');
+
+  if (!intakeListenerAttached) {
+    window.addEventListener('message', handleIntakeMessage);
+    intakeListenerAttached = true;
+  }
+
+  clearTimeout(intakePopoutTimeout);
+  intakePopoutTimeout = setTimeout(() => {
+    showIntakeError('INTAKE did not respond — try again, or use the ↻ refresh once you\'ve created the company.');
+  }, 20000);
+
+  clearInterval(intakePollTimer);
+  intakePollTimer = setInterval(() => {
+    if (intakePopoutWin && intakePopoutWin.closed) {
+      clearInterval(intakePollTimer);
+      clearTimeout(intakePopoutTimeout);
+      hideIntakeStatus();
+    }
+  }, 1000);
+}
+
+function handleIntakeMessage(event) {
+  if (event.origin !== INTAKE_ORIGIN) return;
+  if (!event.data || event.data.source !== 'einbau-intake') return;
+
+  switch (event.data.type) {
+    case 'INTAKE_READY':
+      if (intakePopoutWin) {
+        intakePopoutWin.postMessage({
+          source: 'einbau-scout', type: 'SCOUT_INIT',
+          token: scoutAuthToken,
+          rfqEmailText: document.getElementById('rfq-email').value || ''
+        }, INTAKE_ORIGIN);
+      }
+      break;
+    case 'INTAKE_COMPANY_CREATED':
+      clearTimeout(intakePopoutTimeout);
+      clearInterval(intakePollTimer);
+      onIntakeCompanyCreated(event.data.customer);
+      break;
+    case 'INTAKE_ERROR':
+      clearTimeout(intakePopoutTimeout);
+      clearInterval(intakePollTimer);
+      showIntakeError(event.data.message || 'INTAKE reported an error.');
+      break;
+    case 'INTAKE_CLOSED':
+      clearTimeout(intakePopoutTimeout);
+      clearInterval(intakePollTimer);
+      hideIntakeStatus();
+      break;
+  }
+}
+
+function onIntakeCompanyCreated(customer) {
+  if (!customer || !customer.id) { showIntakeError('INTAKE did not return a valid customer.'); return; }
+  const idStr = String(customer.id);
+  if (!allClients.find(c => c.id === idStr)) {
+    allClients.push({ id: idStr, name: customer.name, procoreId: customer.procoreId || '' });
+    allClients.sort((a, b) => a.name.localeCompare(b.name));
+  }
+  selectClient(customer.name, idStr, customer.procoreId || '');
+  showIntakeSuccess(`✓ "${customer.name}" created and selected.`);
+  setTimeout(loadClients, 1500); // background reconcile; manual ↻ remains as fallback
+}
+
+function showIntakePending(msg) {
+  const el = document.getElementById('intake-status');
+  el.className = 'intake-status';
+  el.innerHTML = `<span class="spinner"></span> ${msg}`;
+  el.style.display = 'flex';
+}
+function showIntakeSuccess(msg) {
+  const el = document.getElementById('intake-status');
+  el.className = 'intake-status';
+  el.textContent = msg;
+  el.style.display = 'flex';
+  setTimeout(hideIntakeStatus, 6000);
+}
+function showIntakeError(msg) {
+  const el = document.getElementById('intake-status');
+  el.className = 'intake-status error';
+  el.textContent = msg;
+  el.style.display = 'flex';
+}
+function hideIntakeStatus() {
+  document.getElementById('intake-status').style.display = 'none';
+}
 
 // Auto-grow textareas (notes/decision only, not parse area)
 function autoGrow(el) {
@@ -936,10 +1164,19 @@ const data = await res.json();
   }
 }
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 function renderDropdown(clients) {
   const dd = document.getElementById('client-dropdown');
   if (!clients.length) {
-    dd.innerHTML = '<div class="combobox-empty">No matches</div>';
+    const typed = document.getElementById('f-client').value.trim();
+    dd.innerHTML = typed
+      ? `<div class="combobox-empty">No matches</div><div class="combobox-option" style="color:var(--green-dark);font-weight:600;" onmousedown="openIntakePopout()">+ Create "${escapeHtml(typed)}" as new company</div>`
+      : '<div class="combobox-empty">No matches</div>';
     return;
   }
   dd.innerHTML = clients.slice(0, 80).map(c =>
@@ -1674,13 +1911,19 @@ function archiveBid(id,newStatus){
   if(b){b.status=newStatus;saveBids();renderBoard();}
 }
 
-buildDisqualifiers();
-buildScoringSection();
-updateScore();
-setTimeout(loadClients, 300);
+let scoutAppInitialized = false;
+function initScoutApp(){
+  if(scoutAppInitialized) return;
+  scoutAppInitialized = true;
+  buildDisqualifiers();
+  buildScoringSection();
+  updateScore();
+  setTimeout(loadClients, 300);
+  applyEstimatorFromUrl();
+}
 
 // Pre-select estimator from URL parameter e.g. app.html?estimator=Sunita
-(function(){
+function applyEstimatorFromUrl(){
   const params = new URLSearchParams(window.location.search);
   const est = params.get('estimator');
   if(est){
@@ -1699,7 +1942,7 @@ setTimeout(loadClients, 300);
       }
     }
   }
-})();
+}
 </script>
     <div id="help-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
   <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;max-width:640px;width:90%;max-height:85vh;overflow-y:auto;padding:32px;position:relative;">
@@ -1764,6 +2007,9 @@ setTimeout(loadClients, 300);
     </div>
   </div>
 </div>
+
+</div>
+<!-- /#screen-app -->
 
 </body>
 </html>
