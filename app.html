@@ -718,6 +718,9 @@ document.addEventListener('input', function(e) {
 
 function updateProjNameCounter() {
   const el = document.getElementById('f-projname');
+  // maxlength only blocks live typing, not el.value = "..." set programmatically
+  // (Claude parse results, Copilot form_update) — so enforce it for real here too.
+  if(el.value.length > 79) el.value = el.value.slice(0, 79);
   const counter = document.getElementById('projname-counter');
   if(!counter) return;
   const remaining = 79 - el.value.length;
@@ -1098,6 +1101,7 @@ function replaceLastCopilotMessage(role, html) {
       const el = document.getElementById(update.field);
       if(el) {
         el.value = update.value;
+        if(el.id === 'f-projname') updateProjNameCounter();
         if(el.tagName === 'SELECT' || el.id.startsWith('crit-')) updateScore();
         updatesApplied++;
       }
