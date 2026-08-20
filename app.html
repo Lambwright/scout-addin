@@ -1291,6 +1291,11 @@ function checkNewContactCandidate() {
   actionEl.appendChild(btn);
 }
 
+// PC Companies mapping record used across the Procore integration (same one
+// INTAKE writes to new customers) — confirmed via NetSuite UI.
+const PC_COMPANY_ID = '1';
+const PROCORE_COMPANY_ID = '562949953508586';
+
 async function addNewClientContact() {
   const btn = document.querySelector('#add-contact-action button');
   if (!btn || !selectedClientNSID) return;
@@ -1311,6 +1316,7 @@ async function addNewClientContact() {
   if (phone) payload.phone = phone;
   if (role) payload.title = role;
 
+  let contactId = null;
   try {
     const res = await fetch('https://netsuite.ben-a90.workers.dev', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1324,14 +1330,93 @@ async function addNewClientContact() {
       btn.textContent = originalLabel;
       return;
     }
-    existingClientContacts.push({ id: '', fname, lname, email: email.toLowerCase() });
+    if (body.location) { const m = String(body.location).match(/\/(\d+)(?:\?.*)?$/); if (m) contactId = m[1]; }
+    if (!contactId && body.id) contactId = String(body.id);
+
+    existingClientContacts.push({ id: contactId || '', fname, lname, email: email.toLowerCase() });
     renderExistingContactsInfo();
     document.getElementById('add-contact-action').style.display = 'none';
   } catch (e) {
     alert('Network error adding contact — try again.');
     btn.disabled = false;
     btn.textContent = originalLabel;
+    return;
   }
+
+  // Best-effort Procore sync — the NetSuite contact above is already saved
+  // regardless of whether this succeeds, so failures here are non-fatal.
+  if (contactId) {
+    syncNewContactToProcore(contactId, { fname, lname, email, phone, role }).catch(e => {
+      console.error('Procore contact sync failed:', e);
+    });
+  }
+}
+
+async function findProcoreVendorIdForCustomer(nsCustomerId) {
+  try {
+    const res = await fetch('https://netsuite.ben-a90.workers.dev', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'POST', path: '/query/v1/suiteql',
+        data: { q: `SELECT custrecord_r_it_entity_pc_id FROM customrecord_r_it_entity_pc_ids WHERE custrecord_r_it_entity_record = '${nsCustomerId}'` } })
+    });
+    const data = await res.json();
+    const item = data.items && data.items[0];
+    return item ? String(item.custrecord_r_it_entity_pc_id) : null;
+  } catch (e) { console.error('findProcoreVendorIdForCustomer:', e); return null; }
+}
+
+async function syncNewContactToProcore(nsContactId, contact) {
+  const vendorId = await findProcoreVendorIdForCustomer(selectedClientNSID);
+  if (!vendorId) {
+    console.log('No Procore vendor id on file for this client yet — skipping Procore contact sync.');
+    return;
+  }
+
+  const userPayload = {
+    last_name: contact.lname || contact.fname || 'Unknown',
+    first_name: contact.fname || '',
+    email_address: contact.email || undefined,
+    business_phone: contact.phone || undefined,
+    job_title: contact.role || undefined,
+    is_active: true,
+    is_employee: false,
+    vendor_id: Number(vendorId)
+  };
+
+  const pcRes = await fetch('https://procore.ben-a90.workers.dev', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      method: 'POST', version: 'v1.3',
+      path: `/companies/${PROCORE_COMPANY_ID}/users`,
+      data: { user: userPayload }
+    })
+  });
+  const pcBody = await pcRes.json().catch(() => null);
+  if (!pcBody || !pcBody.id) {
+    console.error('Procore user creation failed:', pcBody);
+    return;
+  }
+
+  const procoreUserId = String(pcBody.id);
+  const partyId = pcBody.party_id != null ? String(pcBody.party_id) : '';
+
+  // Write the linkage back into NetSuite so it shows as connected there too
+  // (per Ben: NetSuite-side link is enough for now, no ERP link expected on
+  // the Procore side itself for this path).
+  await fetch('https://netsuite.ben-a90.workers.dev', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      method: 'POST', path: '/customrecord_r_it_entity_pc_ids',
+      data: {
+        custrecord_r_it_entity_pc_id: procoreUserId,
+        custrecord_r_it_entity_record: { id: nsContactId },
+        custrecord_r_it_epid_uid: procoreUserId,
+        custrecord_r_it_epid_pid: partyId,
+        custrecord_r_it_pc_company: { id: PC_COMPANY_ID },
+        custrecord_r_it_link: `https://us02.procore.com/company/directory/users/${procoreUserId}`
+      }
+    })
+  }).catch(e => console.error('Failed to write Entity Procore ID back to NetSuite:', e));
 }
 
 function openDropdown() {
