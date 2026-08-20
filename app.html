@@ -387,14 +387,16 @@
       <div class="card">
         <div class="card-header"><span class="card-title">Client contact info</span></div>
         <div class="field-grid">
-          <div class="field"><label>First name</label><input type="text" id="f-fname" placeholder=""></div>
-          <div class="field"><label>Last name</label><input type="text" id="f-lname" placeholder=""></div>
+          <div class="field"><label>First name</label><input type="text" id="f-fname" placeholder="" oninput="checkNewContactCandidate()"></div>
+          <div class="field"><label>Last name</label><input type="text" id="f-lname" placeholder="" oninput="checkNewContactCandidate()"></div>
           <div class="field"><label>Role</label>
             <select id="f-role"><option value="">Select…</option><option>Owner/Decision Maker</option><option>Project Manager</option><option>Project Coordinator</option><option>Estimator</option><option>Other/Unknown</option></select>
           </div>
           <div class="field"><label>Phone</label><input type="text" id="f-phone" placeholder=""></div>
-          <div class="field"><label>Email</label><input type="text" id="f-email" placeholder=""></div>
+          <div class="field"><label>Email</label><input type="text" id="f-email" placeholder="" oninput="checkNewContactCandidate()"></div>
         </div>
+        <div id="existing-contacts-info" style="margin-top:10px;font-size:11px;color:var(--text-tertiary);"></div>
+        <div id="add-contact-action" style="display:none;margin-top:10px;"></div>
       </div>
 
       <!-- DISQUALIFIERS -->
@@ -1102,6 +1104,7 @@ function replaceLastCopilotMessage(role, html) {
       if(el) {
         el.value = update.value;
         if(el.id === 'f-projname') updateProjNameCounter();
+        if(el.id === 'f-fname' || el.id === 'f-lname' || el.id === 'f-email') checkNewContactCandidate();
         if(el.tagName === 'SELECT' || el.id.startsWith('crit-')) updateScore();
         updatesApplied++;
       }
@@ -1205,7 +1208,8 @@ function selectClient(name, nsId, procoreId) {
   selectedClientProcoreID = procoreId || '';
   document.getElementById('f-client').value = name;
   closeDropdown();
-  
+  loadExistingContacts(selectedClientNSID);
+
   // Fetch Procore company ID from NetSuite if not already populated
   if(nsId && !procoreId) {
     fetch('https://netsuite.ben-a90.workers.dev', {
@@ -1226,6 +1230,107 @@ function selectClient(name, nsId, procoreId) {
       }
     })
     .catch(e => console.error('Failed to fetch Procore company ID:', e));
+  }
+}
+
+// ---------- existing NetSuite contacts for the selected client ----------
+let existingClientContacts = [];
+
+async function loadExistingContacts(nsId) {
+  existingClientContacts = [];
+  document.getElementById('existing-contacts-info').textContent = '';
+  document.getElementById('add-contact-action').style.display = 'none';
+  if (!nsId) return;
+  try {
+    const res = await fetch('https://netsuite.ben-a90.workers.dev', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'POST', path: '/query/v1/suiteql',
+        data: { q: `SELECT id, firstname, lastname, email FROM contact WHERE company = '${nsId}'` } })
+    });
+    const data = await res.json();
+    existingClientContacts = (data.items || []).map(c => ({
+      id: String(c.id), fname: c.firstname || '', lname: c.lastname || '', email: (c.email || '').toLowerCase()
+    }));
+    renderExistingContactsInfo();
+    checkNewContactCandidate();
+  } catch (e) { console.error('loadExistingContacts:', e); }
+}
+
+function renderExistingContactsInfo() {
+  const el = document.getElementById('existing-contacts-info');
+  if (!existingClientContacts.length) { el.textContent = 'No contacts on file in NetSuite for this client yet.'; return; }
+  const names = existingClientContacts.map(c => `${c.fname} ${c.lname}`.trim() || c.email).filter(Boolean);
+  el.textContent = `On file in NetSuite: ${names.join(', ')}`;
+}
+
+// Offers to add the currently-typed RFQ contact as a NetSuite Contact record
+// when they're not already on file for this client (matched by email, or by
+// first+last name if no email is given).
+function checkNewContactCandidate() {
+  const actionEl = document.getElementById('add-contact-action');
+  const fname = document.getElementById('f-fname').value.trim();
+  const lname = document.getElementById('f-lname').value.trim();
+  const email = document.getElementById('f-email').value.trim().toLowerCase();
+
+  if (!selectedClientNSID || (!fname && !lname && !email)) { actionEl.style.display = 'none'; return; }
+
+  const alreadyOnFile = existingClientContacts.some(c =>
+    (email && c.email && c.email === email) ||
+    (!email && fname && lname && c.fname.toLowerCase() === fname.toLowerCase() && c.lname.toLowerCase() === lname.toLowerCase())
+  );
+  if (alreadyOnFile) { actionEl.style.display = 'none'; return; }
+
+  const label = [fname, lname].filter(Boolean).join(' ') || email;
+  actionEl.innerHTML = '';
+  actionEl.style.display = 'block';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn btn-ghost';
+  btn.textContent = `+ Add "${label}" as a NetSuite contact for ${selectedClient}`;
+  btn.onclick = addNewClientContact;
+  actionEl.appendChild(btn);
+}
+
+async function addNewClientContact() {
+  const btn = document.querySelector('#add-contact-action button');
+  if (!btn || !selectedClientNSID) return;
+  const fname = document.getElementById('f-fname').value.trim();
+  const lname = document.getElementById('f-lname').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const role = document.getElementById('f-role').value;
+
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+
+  const payload = { company: { id: selectedClientNSID } };
+  if (fname) payload.firstname = fname;
+  if (lname) payload.lastname = lname;
+  if (email) payload.email = email;
+  if (phone) payload.phone = phone;
+  if (role) payload.title = role;
+
+  try {
+    const res = await fetch('https://netsuite.ben-a90.workers.dev', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'POST', path: '/contact', data: payload })
+    });
+    const body = await res.json().catch(() => null);
+    const errDetail = body && ((body['o:errorDetails'] && body['o:errorDetails'][0] && body['o:errorDetails'][0].detail) || body.error || body.title);
+    if (!body || errDetail) {
+      alert(`Failed to add contact to NetSuite: ${errDetail || 'unknown error'}`);
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      return;
+    }
+    existingClientContacts.push({ id: '', fname, lname, email: email.toLowerCase() });
+    renderExistingContactsInfo();
+    document.getElementById('add-contact-action').style.display = 'none';
+  } catch (e) {
+    alert('Network error adding contact — try again.');
+    btn.disabled = false;
+    btn.textContent = originalLabel;
   }
 }
 
@@ -1444,6 +1549,7 @@ async function parseRFQ(){
     if(data.role) document.getElementById('f-role').value=data.role;
     if(data.phone) document.getElementById('f-phone').value=data.phone;
     if(data.email) document.getElementById('f-email').value=data.email;
+    checkNewContactCandidate();
     if(data.enduser) document.getElementById('f-enduser').value=data.enduser;
     if(data.projname) { document.getElementById('f-projname').value=data.projname; updateProjNameCounter(); }
     if(data.projaddr) {
@@ -1872,6 +1978,9 @@ function clearForm(){
   selectedClient='';
   selectedClientNSID='';
   selectedClientProcoreID='';
+  existingClientContacts=[];
+  document.getElementById('existing-contacts-info').textContent='';
+  document.getElementById('add-contact-action').style.display='none';
   ['f-estimator','f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-date').value='';
   document.getElementById('f-bid-due-date').value='';
