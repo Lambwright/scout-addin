@@ -189,10 +189,10 @@
     .score-ruler-wrap { margin-top: 10px; }
     .score-ruler { position: relative; height: 8px; border-radius: 4px; overflow: hidden; display: flex; }
     .ruler-zone { height: 100%; }
-    .ruler-zone.no-bid { background: #fee2e2; flex: 40; }
-    .ruler-zone.c { background: #dbeafe; flex: 20; }
-    .ruler-zone.b { background: #fef9c3; flex: 20; }
-    .ruler-zone.a { background: #dcfce7; flex: 20; }
+    .ruler-zone.no-bid { background: #fee2e2; flex: 50; }
+    .ruler-zone.c { background: #dbeafe; flex: 22; }
+    .ruler-zone.b { background: #fef9c3; flex: 18; }
+    .ruler-zone.a { background: #dcfce7; flex: 10; }
     .ruler-marker { position: absolute; top: -3px; width: 3px; height: 14px; background: var(--text-primary); border-radius: 2px; transition: left 0.3s ease; box-shadow: 0 0 0 2px var(--bg-card); }
     .ruler-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-tertiary); margin-top: 3px; letter-spacing: 0.04em; }
 
@@ -345,7 +345,7 @@
               <div class="ruler-zone a"></div>
               <div class="ruler-marker" id="ruler-marker" style="left:0%"></div>
             </div>
-            <div class="ruler-labels"><span>0</span><span>40</span><span>60</span><span>80</span><span>100</span></div>
+            <div class="ruler-labels"><span>0</span><span>50</span><span>72</span><span>90</span><span>100</span></div>
           </div>
         </div>
         <div class="section-scores-display" id="section-scores">—</div>
@@ -1484,7 +1484,7 @@ const DISQUALIFIERS = [
 
 const CRITERIA = [
   { id:'client_award_status', label:'Client award status', weight:7, section:1, options:[{label:'Client has won project / confirmed award',score:10},{label:'Estimated chance of GC win >50%',score:5},{label:'Unknown',score:3},{label:'Client has NOT won / multiple bidders',score:1}]},
-  { id:'payment_record', label:'Payment record', weight:5, section:1, options:[{label:'GOOD – No known issues',score:10},{label:'AVERAGE – Minor previous issues',score:5},{label:'New client / Unknown',score:3},{label:'POOR – Major issues / Outstanding',score:1}]},
+  { id:'payment_record', label:'Payment record', weight:8, section:1, options:[{label:'GOOD – No known issues',score:10},{label:'AVERAGE – Minor previous issues',score:5},{label:'New client / Unknown',score:3},{label:'POOR – Major issues / Outstanding',score:1}]},
   { id:'win_potential', label:'Win potential (bid history)', weight:5, section:1, options:[{label:'At least 1 award per 5 bids',score:10},{label:'>5 previous bids with no award (1 yr)',score:5},{label:'New client / Unknown',score:3},{label:'Known bid shopper',score:1}]},
   { id:'relationship_strength', label:'Relationship strength', weight:5, section:1, options:[{label:'Established relationship; regular communication',score:10},{label:'Some prior contact; warm relationship / Referred',score:5},{label:'No relationship / unknown',score:3},{label:'Cold / inbound only',score:1}]},
   { id:'client_loyalty', label:'Client loyalty to Einbau', weight:4, section:1, options:[{label:'Regularly awards large projects to Einbau',score:10},{label:'Limited previous awards to Einbau',score:5},{label:'Unknown',score:3},{label:'No previous awards to Einbau',score:1}]},
@@ -1622,14 +1622,14 @@ function updateScore(){
     const marker=document.getElementById('ruler-marker');
     if(marker) marker.style.left=Math.min(totalScaled,100)+'%';
     let tier,cls,rec;
-    if(totalScaled>=80){tier='Tier A';cls='tier-a';rec='High priority — submit bid. Assign estimator and flag for leadership.';}
-    else if(totalScaled>=60){tier='Tier B';cls='tier-b';rec='Medium priority — qualify further before committing estimating resources.';}
-    else if(totalScaled>=40){tier='Tier C';cls='tier-c';rec='Low priority — monitor only. Do not assign estimating without leadership review.';}
+    if(totalScaled>=90){tier='Tier A';cls='tier-a';rec='High priority — submit bid. Assign estimator and flag for leadership.';}
+    else if(totalScaled>=72){tier='Tier B';cls='tier-b';rec='Medium priority — qualify further before committing estimating resources.';}
+    else if(totalScaled>=50){tier='Tier C';cls='tier-c';rec='Low priority — monitor only. Do not assign estimating without leadership review.';}
     else{tier='No bid';cls='tier-no';rec='No bid — decline or defer. Do not assign estimating resources.';}
     tierEl.className='tier-badge '+cls;
     tierEl.textContent=tier;
     recEl.textContent=rec;
-    const autoPush=totalScaled>=60&&!disqTriggered;
+    const autoPush=totalScaled>=72&&!disqTriggered;
     const pushCb=document.getElementById('push-to-bid');
     if(!pushCb.dataset.touched) pushCb.checked=autoPush;
   }
@@ -1741,7 +1741,7 @@ async function submitRFQ(){
     sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
   });
   const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
-  const tier=disqTriggered.length>0?'No bid':total>=80?'A':total>=60?'B':total>=40?'C':'No bid';
+  const tier=disqTriggered.length>0?'No bid':total>=90?'A':total>=72?'B':total>=50?'C':'No bid';
   const payload={
     client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
     role:document.getElementById('f-role').value,phone:document.getElementById('f-phone').value,
@@ -1883,7 +1883,7 @@ async function declineRFQ(){
     sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
   });
   const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
-  const tier=disqTriggered.length>0?'No bid':total>=80?'A':total>=60?'B':total>=40?'C':'No bid';
+  const tier=disqTriggered.length>0?'No bid':total>=90?'A':total>=72?'B':total>=50?'C':'No bid';
 
   const payload={
     client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
