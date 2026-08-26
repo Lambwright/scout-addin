@@ -1,0 +1,13 @@
+# The Outlook task-pane add-in was never activated (GoDaddy-tenant M365 admin
+# restrictions block sideloading it) — only app.html (the standalone site) is
+# actually used. These files were the only unauthenticated entry point into
+# the backend (index.html called it directly, with no Einbau ID login gate,
+# unlike app.html) and served no purpose being public, so they stay local-only.
+index.html
+manifest.xml
+function-file.html
+icon-16.png
+icon-32.png
+icon-64.png
+icon-80.png
+desktop.ini
