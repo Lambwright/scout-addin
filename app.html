@@ -738,7 +738,7 @@ function checkPipelineConflict(dateStr) {
   const checkDate = `${parts[1]}/${parts[2]}/${parts[0]}`;
   fetch('https://netsuite.ben-a90.workers.dev', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken},
     body: JSON.stringify({
       method: 'POST',
       path: '/query/v1/suiteql',
@@ -991,7 +991,7 @@ You are also available to help the estimator troubleshoot the SCOUT form itself.
 
   fetch('https://scout.ben-a90.workers.dev', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
     body: JSON.stringify({ messages: copilotHistory })
   })
   .then(r => r.json())
@@ -1056,7 +1056,7 @@ async function sendCopilotMessage() {
     
     const response = await fetch('https://scout.ben-a90.workers.dev', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
       body: JSON.stringify({ messages: validatedMessages })
     });
     const data = await response.json();
@@ -1136,7 +1136,7 @@ async function loadClients(retryCount = 0) {
   try {
     const res = await fetch('https://netsuite.ben-a90.workers.dev', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
   body: JSON.stringify({
     method: 'POST',
     path: '/query/v1/suiteql',
@@ -1215,7 +1215,7 @@ function selectClient(name, nsId, procoreId) {
   if(nsId && !procoreId) {
     fetch('https://netsuite.ben-a90.workers.dev', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken},
       body: JSON.stringify({
         method: 'GET',
         path: `/customer/${nsId}?expandSubResources=false`,
@@ -1245,7 +1245,7 @@ async function loadExistingContacts(nsId) {
   if (!nsId) return;
   try {
     const res = await fetch('https://netsuite.ben-a90.workers.dev', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
       body: JSON.stringify({ method: 'POST', path: '/query/v1/suiteql',
         data: { q: `SELECT id, firstname, lastname, email FROM contact WHERE company = '${nsId}'` } })
     });
@@ -1321,7 +1321,7 @@ async function addNewClientContact() {
   let contactId = null;
   try {
     const res = await fetch('https://netsuite.ben-a90.workers.dev', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
       body: JSON.stringify({ method: 'POST', path: '/contact', data: payload })
     });
     const body = await res.json().catch(() => null);
@@ -1362,7 +1362,7 @@ function showProcoreSyncStatus(msg, kind) {
 
 async function findProcoreVendorIdForCustomer(nsCustomerId) {
   const res = await fetch('https://netsuite.ben-a90.workers.dev', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
     body: JSON.stringify({ method: 'POST', path: '/query/v1/suiteql',
       data: { q: `SELECT custrecord_r_it_entity_pc_id FROM customrecord_r_it_entity_pc_ids WHERE custrecord_r_it_entity_record = '${nsCustomerId}'` } })
   });
@@ -1426,7 +1426,7 @@ async function syncNewContactToProcore(nsContactId, contact) {
   // the Procore side itself for this path).
   try {
     await fetch('https://netsuite.ben-a90.workers.dev', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
       body: JSON.stringify({
         method: 'POST', path: '/customrecord_r_it_entity_pc_ids',
         data: {
@@ -1985,7 +1985,7 @@ Respond with a short bullet list of learnings only, or NONE.`;
   try {
     const res = await fetch('https://scout.ben-a90.workers.dev', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + scoutAuthToken},
       body: JSON.stringify({ messages: [{ role: 'user', content: extractionPrompt }] })
     });
     const data = await res.json();
