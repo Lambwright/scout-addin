@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SCOUT — Einbau Bid Prequalifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --green: #8FC742;
@@ -154,6 +157,16 @@
     .btn-green:hover:not(:disabled) { background: var(--green-dark); box-shadow: 0 2px 8px rgba(143,199,66,0.4); }
     .btn-green:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-ghost { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border-input); }
+
+    .app-switcher { position: relative; cursor: pointer; }
+    .app-switcher-caret { font-size: 9px; margin-left: 4px; color: var(--text-tertiary); }
+    .app-switcher-menu { position: absolute; top: 100%; left: 0; margin-top: 8px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); min-width: 170px; box-shadow: var(--shadow-md); z-index: 300; overflow: hidden; }
+    .app-switcher-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-decoration: none; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); }
+    .app-switcher-item:last-child { border-bottom: none; }
+    .app-switcher-item:hover { background: var(--bg-page); }
+    .app-switcher-item.current { color: var(--green); background: rgba(143,199,66,0.08); }
+    .app-switcher-item.disabled { color: var(--text-tertiary); cursor: default; }
+    .app-switcher-soon { font-size: 9px; font-weight: 400; color: var(--text-tertiary); }
     .btn-decline { background: none; color: #dc2626; border: 1px solid #fca5a5; }
     .btn-decline:hover { background: #fff5f5; border-color: #dc2626; }
     .btn-ghost:hover { color: var(--text-primary); border-color: var(--text-tertiary); }
@@ -258,9 +271,10 @@
 <header class="header">
   <img src="https://lambwright.github.io/scout-addin/logo.png" alt="Einbau" class="header-logo">
   <div class="header-divider"></div>
-  <div class="header-badge">
-    <span class="header-badge-name">SCOUT</span>
+  <div class="header-badge app-switcher" id="app-switcher-trigger" onclick="toggleAppSwitcher(event)">
+    <span class="header-badge-name">SCOUT<span class="app-switcher-caret">▾</span></span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
+    <div id="app-switcher-menu" class="app-switcher-menu" style="display:none;"></div>
   </div>
   <div class="header-version" id="scout-header-version">Nimble Tapir</div>
   <div id="scout-user-badge" style="display:none;align-items:center;gap:12px;margin-left:16px;">
@@ -526,7 +540,35 @@ const INTAKE_ORIGIN = 'https://lambwright.github.io';
 let scoutAuthToken = null;
 let scoutCurrentUser = null;
 
-document.addEventListener('DOMContentLoaded', checkExistingScoutSession);
+// Shared across PUNCH/SCOUT/INTAKE. PUNCH is Ben's personal tool (punch-worker
+// checks the logged-in username, not just that a session is valid), so it's
+// listed here but not linked — visible, not reachable.
+const APP_SWITCHER_LINKS = [
+  { name: 'PUNCH', url: null, comingSoon: true },
+  { name: 'SCOUT', url: 'https://lambwright.github.io/scout-addin/app.html', current: true },
+  { name: 'INTAKE', url: 'https://lambwright.github.io/scout-intake/' },
+];
+function initAppSwitcher() {
+  const menu = document.getElementById('app-switcher-menu');
+  if (!menu) return;
+  menu.innerHTML = APP_SWITCHER_LINKS.map(app => {
+    if (app.comingSoon) {
+      return `<div class="app-switcher-item disabled">${app.name}<span class="app-switcher-soon">COMING SOON</span></div>`;
+    }
+    return `<a class="app-switcher-item${app.current ? ' current' : ''}" href="${app.url}">${app.name}</a>`;
+  }).join('');
+  document.addEventListener('click', () => { menu.style.display = 'none'; });
+}
+function toggleAppSwitcher(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('app-switcher-menu');
+  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initAppSwitcher();
+  checkExistingScoutSession();
+});
 
 async function checkExistingScoutSession() {
   const stored = localStorage.getItem('einbau_scout_token');
