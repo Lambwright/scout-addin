@@ -541,17 +541,22 @@ let scoutAuthToken = null;
 let scoutCurrentUser = null;
 
 // Shared across PUNCH/SCOUT/INTAKE. PUNCH is Ben's personal tool (punch-worker
-// checks the logged-in username, not just that a session is valid), so it's
-// listed here but not linked — visible, not reachable.
-const APP_SWITCHER_LINKS = [
-  { name: 'PUNCH', url: null, comingSoon: true },
-  { name: 'SCOUT', url: 'https://lambwright.github.io/scout-addin/app.html', current: true },
-  { name: 'INTAKE', url: 'https://lambwright.github.io/scout-intake/' },
-];
+// checks the logged-in username, not just that a session is valid) — everyone
+// else sees it greyed out, but for Ben himself it's a real link, same as the
+// other two. Re-run once login state is known (initial render can't tell yet).
+const PUNCH_OWNER_USERNAME = 'ben';
+function appSwitcherLinks() {
+  const isOwner = scoutCurrentUser && scoutCurrentUser.username === PUNCH_OWNER_USERNAME;
+  return [
+    { name: 'PUNCH', url: 'https://lambwright.github.io/PUNCH/', comingSoon: !isOwner },
+    { name: 'SCOUT', url: 'https://lambwright.github.io/scout-addin/app.html', current: true },
+    { name: 'INTAKE', url: 'https://lambwright.github.io/scout-intake/' },
+  ];
+}
 function initAppSwitcher() {
   const menu = document.getElementById('app-switcher-menu');
   if (!menu) return;
-  menu.innerHTML = APP_SWITCHER_LINKS.map(app => {
+  menu.innerHTML = appSwitcherLinks().map(app => {
     if (app.comingSoon) {
       return `<div class="app-switcher-item disabled">${app.name}<span class="app-switcher-soon">COMING SOON</span></div>`;
     }
@@ -608,6 +613,7 @@ function showScoutApp() {
   document.getElementById('screen-app').style.display = 'block';
   document.getElementById('scout-user-badge').style.display = 'flex';
   document.getElementById('scout-user-name').textContent = scoutCurrentUser ? scoutCurrentUser.displayName : '';
+  initAppSwitcher(); // re-render now that we know who's logged in — affects the PUNCH link
   initScoutApp();
 }
 
