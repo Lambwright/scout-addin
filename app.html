@@ -1259,20 +1259,26 @@ function selectClient(name, nsId, procoreId) {
   closeDropdown();
   loadExistingContacts(selectedClientNSID);
 
-  // Fetch Procore company ID from NetSuite if not already populated
+  // Fetch Procore company ID from NetSuite if not already populated. This is
+  // NOT a field on the customer record itself - it lives in a separate custom
+  // record (customrecord_r_it_entity_pc_ids) cross-referenced by customer id,
+  // same as findProcoreVendorIdForCustomer() below. The old version fetched
+  // /customer/{id} directly, which structurally can never return this field -
+  // confirmed live: NetSuite has the Procore ID for plenty of customers whose
+  // bids still went out with a blank Procore company, this was why.
   if(nsId && !procoreId) {
     fetch('https://netsuite.ben-a90.workers.dev', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken},
       body: JSON.stringify({
-        method: 'GET',
-        path: `/customer/${nsId}?expandSubResources=false`,
-        data: null
+        method: 'POST',
+        path: '/query/v1/suiteql',
+        data: { q: `SELECT custrecord_r_it_entity_pc_id FROM customrecord_r_it_entity_pc_ids WHERE custrecord_r_it_entity_record = '${nsId}'` }
       })
     })
     .then(r => r.json())
     .then(d => {
-      const pcId = d?.custrecord_r_it_entity_pc_id;
+      const pcId = d?.items?.[0]?.custrecord_r_it_entity_pc_id;
       if(pcId) {
         selectedClientProcoreID = String(pcId);
         console.log('Procore company ID fetched:', selectedClientProcoreID);
