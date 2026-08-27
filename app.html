@@ -389,9 +389,14 @@
         <div class="card-header"><span class="card-title">Project info</span></div>
         <div class="field-grid">
           <div class="field"><label>Estimator</label>
-            <!-- Read-only, derived from the logged-in Einbau ID account (see currentEstimatorProcoreId())
-                 rather than a manual pick - removes the chance of assigning the wrong person by mistake. -->
-            <div id="f-estimator-display" style="padding:9px 0;font-weight:600;color:var(--text-primary);"></div>
+            <!-- Only Warren and Alfonso are real estimators - defaults to whichever one is
+                 logged in, but either can pick the other (Warren filing on Alfonso's behalf,
+                 etc). Anyone else who ends up on this form gets it locked, sends null. -->
+            <select id="f-estimator" onchange="onEstimatorChange()">
+              <option value="">— Locked —</option>
+              <option value="warren@einbau.ca">Warren</option>
+              <option value="alfonso@einbau.ca">Alfonso</option>
+            </select>
           </div>
           <div class="field"><label>Bid received date</label><input type="date" id="f-date"></div>
           <div class="field"><label>Bid due date</label><input type="date" id="f-bid-due-date" onchange="checkPipelineConflict(this.value)"></div>
@@ -533,23 +538,29 @@ const PROCORE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.envir
 const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/36e245ab3607424db54d370e2a50db6f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bSx33cjfWXoCfpEcvLKrbElLImlUqVAPDfhCgvrrhC0';
 
 const LINK_RECORDS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/18/workflows/d24e7adc04904e5cb689dd31e32f3b50/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cFlHCBv0YF_2yOOyD2yUvkjLcWckwSLf7NL55q7bg7A';  
-// Re-keyed by Einbau ID username (was: manually-picked name from a dropdown).
-// Built from a live match against Procore's company user list on 2026-08-27 -
-// crm@einbau.ca has no Procore account (expected: that login exists for staff
-// without Procore/NetSuite access, per INTAKE's own design), so it's absent on
-// purpose, not a gap. Peter has a Procore id (1215888) but no Einbau ID login
-// yet - add him here the day he gets one, nothing else to change.
+// Only Warren and Alfonso are real estimators - everyone else (Ben, Josh, Mary
+// Lu, CRM) gets the field locked and sends a null estimator, even though some
+// of them do have real Procore accounts. Peter has one too (1215888) but no
+// Einbau ID login yet - not added to the dropdown until he's an active estimator.
 const ESTIMATOR_PROCORE_IDS = {
   'warren@einbau.ca': '3960584',
   'alfonso@einbau.ca': '9130897',
-  'ben': '9130676',
-  'josh@einbau.ca': '9800246',
-  'marylu@einbau.ca': '12352770',
 };
-// The one place that answers "who is submitting this bid" - every call site
-// that used to read the dropdown reads this instead.
+const ESTIMATOR_DISPLAY_NAMES = {
+  'warren@einbau.ca': 'Warren',
+  'alfonso@einbau.ca': 'Alfonso',
+};
+// Tracked separately from login - Warren and Alfonso can each pick the other,
+// so "who's submitting this" isn't always "who's logged in".
+let selectedEstimatorUsername = null;
+function onEstimatorChange() {
+  selectedEstimatorUsername = document.getElementById('f-estimator').value || null;
+}
 function currentEstimatorProcoreId() {
-  return (scoutCurrentUser && ESTIMATOR_PROCORE_IDS[scoutCurrentUser.username]) || '';
+  return (selectedEstimatorUsername && ESTIMATOR_PROCORE_IDS[selectedEstimatorUsername]) || '';
+}
+function currentEstimatorDisplayName() {
+  return (selectedEstimatorUsername && ESTIMATOR_DISPLAY_NAMES[selectedEstimatorUsername]) || '';
 }
 
 // ---------- Einbau ID (shared login) ----------
@@ -1841,7 +1852,7 @@ async function submitRFQ(){
       postal:document.getElementById('f-projpostal').value,
       country:document.getElementById('f-projcountry').value||'Canada'
     },
-    estimator:(scoutCurrentUser && scoutCurrentUser.displayName) || '', estimator_procore_id:currentEstimatorProcoreId(), bid_date:document.getElementById('f-date').value,
+    estimator:currentEstimatorDisplayName(), estimator_procore_id:currentEstimatorProcoreId(), bid_date:document.getElementById('f-date').value,
     bid_due_date:document.getElementById('f-bid-due-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
@@ -1985,7 +1996,7 @@ async function declineRFQ(){
       postal:document.getElementById('f-projpostal').value,
       country:document.getElementById('f-projcountry').value||'Canada'
     },
-    estimator:(scoutCurrentUser && scoutCurrentUser.displayName) || '', estimator_procore_id:currentEstimatorProcoreId(), bid_date:document.getElementById('f-date').value,
+    estimator:currentEstimatorDisplayName(), estimator_procore_id:currentEstimatorProcoreId(), bid_date:document.getElementById('f-date').value,
     bid_due_date:document.getElementById('f-bid-due-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
@@ -2182,6 +2193,7 @@ function clearForm(){
   document.getElementById('add-contact-action').style.display='none';
   document.getElementById('procore-contact-sync-status').style.display='none';
   ['f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  initEstimatorField(); // reset to the login default rather than leaving the last pick
   document.getElementById('f-date').value='';
   document.getElementById('f-bid-due-date').value='';
   CRITERIA.forEach(c=>{const el=document.getElementById('crit-'+c.id);if(el)el.value='';});
@@ -2246,15 +2258,21 @@ function initScoutApp(){
   buildScoringSection();
   updateScore();
   setTimeout(loadClients, 300);
-  applyEstimatorDisplay();
+  initEstimatorField();
 }
 
 // Was: pre-select a name in the dropdown from a URL parameter each estimator
-// bookmarked (app.html?estimator=Sunita). Now just reflects who's actually
-// logged in - there's nothing left to "select", only to display.
-function applyEstimatorDisplay(){
-  const display = document.getElementById('f-estimator-display');
-  if(display) display.textContent = (scoutCurrentUser && scoutCurrentUser.displayName) || '—';
+// bookmarked (app.html?estimator=Sunita). Now defaults to whoever's logged in
+// if they're Warren or Alfonso (either can still switch to the other), and
+// locks the field entirely - sending a null estimator - for anyone else.
+function initEstimatorField(){
+  const sel = document.getElementById('f-estimator');
+  if (sel) {
+    const isRealEstimator = ESTIMATOR_PROCORE_IDS.hasOwnProperty(scoutCurrentUser?.username);
+    selectedEstimatorUsername = isRealEstimator ? scoutCurrentUser.username : null;
+    sel.value = selectedEstimatorUsername || '';
+    sel.disabled = !isRealEstimator;
+  }
   // Alfonso gets special treatment
   if(scoutCurrentUser?.username === 'alfonso@einbau.ca'){
     const icon = document.getElementById('copilot-icon');
