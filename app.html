@@ -384,7 +384,9 @@
         <div class="card-header"><span class="card-title">Project info</span></div>
         <div class="field-grid">
           <div class="field"><label>Estimator</label>
-            <select id="f-estimator"><option value="">Select…</option><option>Warren</option><option>Alfonso</option><option>Peter</option></select>
+            <!-- Read-only, derived from the logged-in Einbau ID account (see currentEstimatorProcoreId())
+                 rather than a manual pick - removes the chance of assigning the wrong person by mistake. -->
+            <div id="f-estimator-display" style="padding:9px 0;font-weight:600;color:var(--text-primary);"></div>
           </div>
           <div class="field"><label>Bid received date</label><input type="date" id="f-date"></div>
           <div class="field"><label>Bid due date</label><input type="date" id="f-bid-due-date" onchange="checkPipelineConflict(this.value)"></div>
@@ -526,11 +528,24 @@ const PROCORE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.envir
 const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/36e245ab3607424db54d370e2a50db6f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bSx33cjfWXoCfpEcvLKrbElLImlUqVAPDfhCgvrrhC0';
 
 const LINK_RECORDS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/18/workflows/d24e7adc04904e5cb689dd31e32f3b50/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cFlHCBv0YF_2yOOyD2yUvkjLcWckwSLf7NL55q7bg7A';  
+// Re-keyed by Einbau ID username (was: manually-picked name from a dropdown).
+// Built from a live match against Procore's company user list on 2026-08-27 -
+// crm@einbau.ca has no Procore account (expected: that login exists for staff
+// without Procore/NetSuite access, per INTAKE's own design), so it's absent on
+// purpose, not a gap. Peter has a Procore id (1215888) but no Einbau ID login
+// yet - add him here the day he gets one, nothing else to change.
 const ESTIMATOR_PROCORE_IDS = {
-  'Warren': '3960584',
-  'Alfonso': '9130897',
-  'Peter': '1215888'
+  'warren@einbau.ca': '3960584',
+  'alfonso@einbau.ca': '9130897',
+  'ben': '9130676',
+  'josh@einbau.ca': '9800246',
+  'marylu@einbau.ca': '12352770',
 };
+// The one place that answers "who is submitting this bid" - every call site
+// that used to read the dropdown reads this instead.
+function currentEstimatorProcoreId() {
+  return (scoutCurrentUser && ESTIMATOR_PROCORE_IDS[scoutCurrentUser.username]) || '';
+}
 
 // ---------- Einbau ID (shared login) ----------
 const AUTH_URL = 'https://auth.ben-a90.workers.dev';
@@ -980,7 +995,7 @@ function activateCopilot(rfqEmail, parsedData) {
   copilotHistory = [];
   
   // Alfonso gets a special greeting
-  const isAlfonso = document.getElementById('f-estimator')?.value === 'Alfonso';
+  const isAlfonso = scoutCurrentUser?.username === 'alfonso@einbau.ca';
 
  const systemContext = `You are SCOUT, an RFQ qualification copilot for Einbau Services Ltd., a custom architectural millwork installation company in Whitby, Ontario.
 The estimating team has just parsed an RFQ email. Here is what was extracted:
@@ -1514,6 +1529,18 @@ function validateClientSelected(typedClient) {
   return true;
 }
 
+// Estimator now comes from login, not a dropdown - most accounts (all real
+// estimators, plus Ben) map to a Procore id, but a login like crm@einbau.ca
+// genuinely has no Procore account behind it (by design, see ESTIMATOR_PROCORE_IDS).
+// Only matters when actually pushing to Procore - scoring/Copilot work fine either way.
+function validateEstimatorForProcore(pushToBid) {
+  if (pushToBid && !currentEstimatorProcoreId()) {
+    alert(`Your account (${scoutCurrentUser?.displayName || 'this login'}) isn't linked to a Procore estimator, so this can't be pushed to the bid board. Ask Ben to add you if you should be.`);
+    return false;
+  }
+  return true;
+}
+
 function filterClients_filtered() {
   const val = document.getElementById('f-client').value;
   return val ? allClients.filter(c => c.name.toLowerCase().includes(val.toLowerCase())) : allClients;
@@ -1776,6 +1803,7 @@ async function submitRFQ(){
   const client=document.getElementById('f-client').value.trim();
   if(!client){alert('Client name is required.');return;}
   if(!validateClientSelected(client)){return;}
+  if(!validateEstimatorForProcore(document.getElementById('push-to-bid')?.checked)){return;}
   const btn=document.getElementById('submit-btn');
   const status=document.getElementById('submit-status');
   btn.disabled=true;
@@ -1808,7 +1836,7 @@ async function submitRFQ(){
       postal:document.getElementById('f-projpostal').value,
       country:document.getElementById('f-projcountry').value||'Canada'
     },
-    estimator:document.getElementById('f-estimator').value, estimator_procore_id:ESTIMATOR_PROCORE_IDS[document.getElementById('f-estimator').value]||'', bid_date:document.getElementById('f-date').value,
+    estimator:(scoutCurrentUser && scoutCurrentUser.displayName) || '', estimator_procore_id:currentEstimatorProcoreId(), bid_date:document.getElementById('f-date').value,
     bid_due_date:document.getElementById('f-bid-due-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
@@ -1916,6 +1944,7 @@ async function declineRFQ(){
   const client=document.getElementById('f-client').value.trim();
   if(!client){alert('Client name is required.');return;}
   if(!validateClientSelected(client)){return;}
+  if(!validateEstimatorForProcore(document.getElementById('push-to-bid')?.checked)){return;}
   const btn=document.getElementById('decline-btn');
   const status=document.getElementById('submit-status');
   btn.disabled=true;
@@ -1951,7 +1980,7 @@ async function declineRFQ(){
       postal:document.getElementById('f-projpostal').value,
       country:document.getElementById('f-projcountry').value||'Canada'
     },
-    estimator:document.getElementById('f-estimator').value, estimator_procore_id:ESTIMATOR_PROCORE_IDS[document.getElementById('f-estimator').value]||'', bid_date:document.getElementById('f-date').value,
+    estimator:(scoutCurrentUser && scoutCurrentUser.displayName) || '', estimator_procore_id:currentEstimatorProcoreId(), bid_date:document.getElementById('f-date').value,
     bid_due_date:document.getElementById('f-bid-due-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
@@ -2147,7 +2176,7 @@ function clearForm(){
   document.getElementById('existing-contacts-info').textContent='';
   document.getElementById('add-contact-action').style.display='none';
   document.getElementById('procore-contact-sync-status').style.display='none';
-  ['f-estimator','f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('f-date').value='';
   document.getElementById('f-bid-due-date').value='';
   CRITERIA.forEach(c=>{const el=document.getElementById('crit-'+c.id);if(el)el.value='';});
@@ -2212,27 +2241,20 @@ function initScoutApp(){
   buildScoringSection();
   updateScore();
   setTimeout(loadClients, 300);
-  applyEstimatorFromUrl();
+  applyEstimatorDisplay();
 }
 
-// Pre-select estimator from URL parameter e.g. app.html?estimator=Sunita
-function applyEstimatorFromUrl(){
-  const params = new URLSearchParams(window.location.search);
-  const est = params.get('estimator');
-  if(est){
-    const sel = document.getElementById('f-estimator');
-    for(let i=0; i<sel.options.length; i++){
-      if(sel.options[i].value.toLowerCase() === est.toLowerCase()){
-        sel.selectedIndex = i;
-        break;
-      }
-    }
-    // Alfonso gets special treatment
-    if(est.toLowerCase() === 'alfonso'){
-      const icon = document.getElementById('copilot-icon');
-      if(icon){
-        icon.innerHTML = '<img src="https://lambwright.github.io/scout-addin/alfonso.png" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" alt="Alfonso">';
-      }
+// Was: pre-select a name in the dropdown from a URL parameter each estimator
+// bookmarked (app.html?estimator=Sunita). Now just reflects who's actually
+// logged in - there's nothing left to "select", only to display.
+function applyEstimatorDisplay(){
+  const display = document.getElementById('f-estimator-display');
+  if(display) display.textContent = (scoutCurrentUser && scoutCurrentUser.displayName) || '—';
+  // Alfonso gets special treatment
+  if(scoutCurrentUser?.username === 'alfonso@einbau.ca'){
+    const icon = document.getElementById('copilot-icon');
+    if(icon){
+      icon.innerHTML = '<img src="https://lambwright.github.io/scout-addin/alfonso.png" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" alt="Alfonso">';
     }
   }
 }
