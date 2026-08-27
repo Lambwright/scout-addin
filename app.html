@@ -73,11 +73,11 @@
     body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: var(--text-primary); background: var(--bg-page); min-height: 100vh; -webkit-font-smoothing: antialiased; }
 
     /* Header */
-    .header { background: var(--bg-header); padding: 0 24px; display: flex; align-items: center; height: 56px; position: sticky; top: 0; z-index: 200; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .header { background: var(--bg-header); padding: 0 24px; display: flex; align-items: center; height: 68px; position: sticky; top: 0; z-index: 200; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .header-divider { width: 1px; height: 24px; background: rgba(255,255,255,0.15); margin: 0 16px; }
     .header-badge { display: flex; flex-direction: column; }
-    .header-badge-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--green); line-height: 1; }
-    .header-badge-sub { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 0.06em; margin-top: 2px; }
+    .header-badge-name { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 30px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-primary); line-height: 1; }
+    .header-badge-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); margin-top: 3px; }
 
     .header-version { margin-left: auto; font-size: 10px; color: rgba(255,255,255,0.25); letter-spacing: 0.06em; font-style: italic; }
     .header-logo { height: 32px; }
@@ -274,10 +274,8 @@
 <body>
 
 <header class="header">
-  <img src="https://lambwright.github.io/scout-addin/logo.png" alt="Einbau" class="header-logo">
-  <div class="header-divider"></div>
   <div class="header-badge app-switcher" id="app-switcher-trigger" onclick="toggleAppSwitcher(event)">
-    <span class="header-badge-name">SCOUT<span class="app-switcher-caret">▾</span></span>
+    <span class="header-badge-name">Scout<span class="app-switcher-caret">▾</span></span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
     <div id="app-switcher-menu" class="app-switcher-menu" style="display:none;"></div>
   </div>
@@ -339,7 +337,7 @@
             <div id="intake-status" class="intake-status" style="display:none;"></div>
           </div>
           <button class="btn btn-green" onclick="parseRFQ()" id="parse-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
             Parse with Claude
           </button>
           <span id="parse-status" class="status-msg"></span>
@@ -518,7 +516,7 @@
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <label for="copilot-file" style="font-size:11px;color:var(--text-tertiary);cursor:pointer;display:flex;align-items:center;gap:4px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             Attach drawing or doc
           </label>
           <input type="file" id="copilot-file" accept=".pdf,.png,.jpg,.jpeg" style="display:none" onchange="handleCopilotFile(this)">
@@ -607,17 +605,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function checkExistingScoutSession() {
-  const stored = localStorage.getItem('einbau_scout_token');
+  const stored = localStorage.getItem('einbau_id_token');
   if (stored) {
     const result = await verifyScoutSession(stored);
     if (result.valid) {
       scoutAuthToken = result.refreshedToken || stored;
-      if (result.refreshedToken) localStorage.setItem('einbau_scout_token', result.refreshedToken);
+      if (result.refreshedToken) localStorage.setItem('einbau_id_token', result.refreshedToken);
       scoutCurrentUser = result.user;
       showScoutApp();
       return;
     }
-    localStorage.removeItem('einbau_scout_token');
+    localStorage.removeItem('einbau_id_token');
   }
   showScoutLogin();
 }
@@ -669,7 +667,7 @@ async function doScoutLogin(e) {
     }
     scoutAuthToken = data.token;
     scoutCurrentUser = data.user;
-    localStorage.setItem('einbau_scout_token', data.token);
+    localStorage.setItem('einbau_id_token', data.token);
     showScoutApp();
   } catch (err) {
     errEl.textContent = 'Could not reach the login server — check your connection.';
@@ -679,7 +677,7 @@ async function doScoutLogin(e) {
 
 function doScoutLogout() {
   scoutAuthToken = null; scoutCurrentUser = null;
-  localStorage.removeItem('einbau_scout_token');
+  localStorage.removeItem('einbau_id_token');
   showScoutLogin();
 }
 
