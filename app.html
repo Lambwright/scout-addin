@@ -550,7 +550,18 @@ const NETSUITE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.envi
 const PROCORE_FLOW_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/29/workflows/9279180a5e8e4c9b8e2758391e178f7d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=67n79vxffs7yuFfAZWw0PfR1UDMIzDtNNKuR2-gnTkg';
 const GET_CLIENTS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/28/workflows/36e245ab3607424db54d370e2a50db6f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bSx33cjfWXoCfpEcvLKrbElLImlUqVAPDfhCgvrrhC0';
 
-const LINK_RECORDS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/18/workflows/d24e7adc04904e5cb689dd31e32f3b50/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cFlHCBv0YF_2yOOyD2yUvkjLcWckwSLf7NL55q7bg7A';  
+const LINK_RECORDS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/18/workflows/d24e7adc04904e5cb689dd31e32f3b50/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cFlHCBv0YF_2yOOyD2yUvkjLcWckwSLf7NL55q7bg7A';
+
+// Parallel-run push into the new CRM wrapper app (company/bid database,
+// crm-worker) — see CRM/crm-app-kickoff-prompt-v1.md. This is a shadow write
+// alongside the Excel/NetSuite/Procore flows above, not a dependency of them:
+// pushToCRM() below never blocks or fails the real submit/decline. The key is
+// a plain client-side gate (same trust model as the signed Power Automate URLs
+// above, already visible in this file's source) — acceptable for a create-only,
+// low-sensitivity intake endpoint.
+const CRM_INTAKE_URL = 'https://crm-worker.ben-a90.workers.dev/intake/scout';
+const CRM_SERVICE_KEY = '9bcd4d09a9bb161359842e0b8e608653e3bd361f7378996f';
+
 // Only Warren and Alfonso are real estimators - everyone else (Ben, Josh, Mary
 // Lu, CRM) gets the field locked and sends a null estimator, even though some
 // of them do have real Procore accounts. Peter has one too (1215888) but no
@@ -1878,6 +1889,40 @@ function exportSnippets() {
 }
 
 
+// SCOUT has no pre-existing "RFQ ID" of its own — it CREATES the NetSuite
+// Opportunity and (optionally) the Procore Bid Board entry fresh on every
+// submission, it doesn't read an existing identifier in. So the intake key
+// sent to CRM prefers the Procore Bid ID once pushed, falls back to the
+// NetSuite Opportunity ID (always present on a successful write), and only as
+// a last resort — both writes failed — a locally-generated key. That last
+// case can't be deduplicated against a retry; acceptable for this first
+// wiring, revisit if it proves to matter in practice.
+function pushToCRM(payload, { qualificationResult, noBidReason, procoreBidId, nsOpportunityId }) {
+  const sourceKey = procoreBidId ? `PROCORE-${procoreBidId}`
+    : nsOpportunityId ? `NS-${nsOpportunityId}`
+    : `SCOUT-${Date.now()}`;
+  const body = {
+    procore_rfq_id: sourceKey,
+    project_name: payload.projname || '(untitled project)',
+    company_name: payload.client,
+    procore_vendor_id: payload.procore_company_id || null,
+    contact: {
+      fname: payload.fname, lname: payload.lname, title: payload.role,
+      email: payload.email, phone: payload.phone
+    },
+    qualification_result: qualificationResult,
+    scout_score: payload.total_score,
+    scout_tier: payload.tier,
+    no_bid_reason: noBidReason || null,
+    bid_due_date: payload.bid_due_date || null
+  };
+  fetch(CRM_INTAKE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CRM-Service-Key': CRM_SERVICE_KEY },
+    body: JSON.stringify(body)
+  }).catch(e => console.error('CRM intake push failed (non-blocking):', e));
+}
+
 async function submitRFQ(){
   const client=document.getElementById('f-client').value.trim();
   if(!client){alert('Client name is required.');return;}
@@ -1989,7 +2034,13 @@ const nsId = window._lastNSOpportunityId;
       console.error('Link Records failed:', e);
     });
   }
-  
+
+  pushToCRM(payload, {
+    qualificationResult: payload.tier === 'No bid' ? 'leadership_override' : 'pursue',
+    procoreBidId: procoreId,
+    nsOpportunityId: nsId
+  });
+
   function setIndicator(dest, ok, skipped) {
     const el = document.getElementById('dest-'+dest);
     const icon = document.getElementById('dest-'+dest+'-icon');
@@ -2103,6 +2154,12 @@ async function declineRFQ(){
     document.getElementById('id-netsuite').textContent = `NS: ${nsRes.value.ns_opportunity_id}`;
     document.getElementById('record-ids').style.display = 'flex';
   }
+
+  pushToCRM(payload, {
+    qualificationResult: 'no_bid',
+    noBidReason: payload.override || payload.notes || 'Declined via SCOUT (no reason captured)',
+    nsOpportunityId: window._lastNSOpportunityId
+  });
 
   function setIndicator(dest, ok) {
     const el = document.getElementById('dest-'+dest);
