@@ -156,6 +156,11 @@
     .parse-controls { display: flex; align-items: flex-end; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
     .client-wrap { flex: 1; min-width: 200px; max-width: 320px; }
     .client-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.02em; display: block; margin-bottom: 5px; }
+    .client-refresh-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--green); background: transparent; border: 1px solid var(--green); border-radius: 20px; padding: 2px 10px; margin-left: 8px; cursor: pointer; vertical-align: middle; font-family: inherit; }
+    .client-refresh-btn:hover:not(:disabled) { background: var(--green); color: #fff; }
+    .client-refresh-btn:disabled { opacity: 0.6; cursor: default; }
+    .client-refresh-btn .spinner { width: 10px; height: 10px; border-width: 2px; }
+    .client-count-badge { font-size: 10px; font-weight: 400; color: var(--text-tertiary); margin-left: 6px; vertical-align: middle; }
 
     /* Buttons */
     .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 20px; border-radius: var(--radius-sm); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; cursor: pointer; transition: all 0.15s; border: none; white-space: nowrap; letter-spacing: 0.05em; }
@@ -339,7 +344,10 @@
         <textarea class="parse-textarea" id="rfq-email" placeholder="Paste the full RFQ email here…"></textarea>
         <div class="parse-controls">
           <div class="client-wrap">
-            <label class="client-label">Bid requester / client <span class="field-req">*</span> <span style="font-size:10px;color:var(--text-tertiary);cursor:pointer;font-weight:400" onclick="loadClients()" title="Refresh client list">↻</span></label>
+            <label class="client-label">Bid requester / client <span class="field-req">*</span>
+              <button type="button" class="client-refresh-btn" id="client-refresh-btn" onclick="loadClients()" title="Refresh client list"><span id="client-refresh-icon">↻</span> Refresh list</button>
+              <span id="client-count-badge" class="client-count-badge"></span>
+            </label>
             <div class="combobox-wrap" id="client-combobox">
               <input type="text" class="combobox-input" id="f-client" placeholder="Search clients…" autocomplete="off" oninput="filterClients(this.value)" onfocus="openDropdown()" onblur="closeDropdownDelayed()">
               <div class="combobox-dropdown" id="client-dropdown">
@@ -1289,7 +1297,21 @@ let selectedClient = '';
 let selectedClientNSID = '';
 let selectedClientProcoreID = '';
 
+function setClientRefreshLoading(isLoading) {
+  const btn = document.getElementById('client-refresh-btn');
+  const icon = document.getElementById('client-refresh-icon');
+  if (!btn || !icon) return;
+  btn.disabled = isLoading;
+  icon.innerHTML = isLoading ? '<span class="spinner"></span>' : '↻';
+}
+
+function updateClientCountBadge() {
+  const el = document.getElementById('client-count-badge');
+  if (el) el.textContent = allClients.length ? `${allClients.length} loaded` : '';
+}
+
 async function loadClients(retryCount = 0) {
+  setClientRefreshLoading(true);
   try {
     const res = await fetch('https://netsuite.ben-a90.workers.dev', {
   method: 'POST',
@@ -1313,6 +1335,8 @@ const data = await res.json();
       }
       records = [];
       document.getElementById('client-dropdown').innerHTML = '<div class="combobox-empty">⚠ Could not load clients — type manually or <span style="cursor:pointer;color:var(--green)" onclick="loadClients()">retry</span></div>';
+      setClientRefreshLoading(false);
+      updateClientCountBadge();
     }
     allClients = records.filter(r => r.name).sort((a,b) => a.name.localeCompare(b.name));
     renderDropdown(allClients);
@@ -1320,6 +1344,9 @@ const data = await res.json();
     if(allClients.length < 1400 && retryCount < 2) {
       console.log(`Only got ${allClients.length} clients, retrying...`);
       setTimeout(() => loadClients(retryCount + 1), 2000);
+    } else {
+      setClientRefreshLoading(false);
+      updateClientCountBadge();
     }
   } catch(e) {
     console.error('loadClients:', e);
@@ -1327,6 +1354,8 @@ const data = await res.json();
       setTimeout(() => loadClients(retryCount + 1), 2000);
     } else {
       document.getElementById('client-dropdown').innerHTML = '<div class="combobox-empty">⚠ Could not load — <span style="cursor:pointer;color:var(--green)" onclick="loadClients()">retry</span></div>';
+      setClientRefreshLoading(false);
+      updateClientCountBadge();
     }
   }
 }
