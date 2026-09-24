@@ -284,6 +284,7 @@
   <div class="header-version" id="scout-header-version">Nimble Tapir</div>
   <div id="scout-user-badge" style="display:none;align-items:center;gap:12px;margin-left:16px;">
     <span id="scout-user-name" style="font-size:11px;color:rgba(255,255,255,0.6);"></span>
+    <span id="scout-rfq-ref-badge" title="This RFQ's CRM reference" style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.04em;color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:3px 10px;"></span>
     <button onclick="document.getElementById('help-modal').style.display='flex'" style="background:none;border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:rgba(255,255,255,0.6);cursor:pointer;letter-spacing:0.04em;">? Help</button>
     <button onclick="doScoutLogout()" class="btn btn-ghost" style="padding:4px 12px;font-size:11px;">Log out</button>
   </div>
@@ -560,6 +561,7 @@ const LINK_RECORDS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.envir
 // above, already visible in this file's source) — acceptable for a create-only,
 // low-sensitivity intake endpoint.
 const CRM_INTAKE_URL = 'https://crm-worker.ben-a90.workers.dev/intake/scout';
+const CRM_MINT_URL = 'https://crm-worker.ben-a90.workers.dev/rfq-ids/mint';
 const CRM_SERVICE_KEY = '9bcd4d09a9bb161359842e0b8e608653e3bd361f7378996f';
 
 // Only Warren and Alfonso are real estimators - everyone else (Ben, Josh, Mary
@@ -594,6 +596,7 @@ const INTAKE_ORIGIN = 'https://lambwright.github.io';
 
 let scoutAuthToken = null;
 let scoutCurrentUser = null;
+let currentRfqRef = null; // this tab's minted CRM rfq_ref — see initRfqRef()
 
 // Personal accent override, set once in HELM ("My Account" → Appearance) and
 // carried on every Einbau ID user record as `themeAccent`. Every suite app
@@ -719,6 +722,7 @@ function showScoutApp() {
   document.getElementById('scout-user-name').textContent = scoutCurrentUser ? scoutCurrentUser.displayName : '';
   initAppSwitcher(); // re-render now that we know who's logged in — affects the PUNCH link
   initScoutApp();
+  initRfqRef(); // after the access-check above — a denied user should never trigger a mint call
 }
 
 async function doScoutLogin(e) {
@@ -1889,20 +1893,18 @@ function exportSnippets() {
 }
 
 
-// SCOUT has no pre-existing "RFQ ID" of its own — it CREATES the NetSuite
-// Opportunity and (optionally) the Procore Bid Board entry fresh on every
-// submission, it doesn't read an existing identifier in. So the intake key
-// sent to CRM prefers the Procore Bid ID once pushed, falls back to the
-// NetSuite Opportunity ID (always present on a successful write), and only as
-// a last resort — both writes failed — a locally-generated key. That last
-// case can't be deduplicated against a retry; acceptable for this first
-// wiring, revisit if it proves to matter in practice.
+// currentRfqRef (minted by initRfqRef() at page load, see below) is the real
+// identifier now — it exists before submission, unlike anything Procore or
+// NetSuite hand back. The old derived-key fallback (Procore Bid ID -> NetSuite
+// Opportunity ID -> a locally-generated key) only kicks in if minting itself
+// failed (e.g. crm-worker was briefly unreachable at page load), so the CRM
+// push still never silently drops an RFQ just because that one call hiccuped.
 function pushToCRM(payload, { qualificationResult, noBidReason, procoreBidId, nsOpportunityId }) {
-  const sourceKey = procoreBidId ? `PROCORE-${procoreBidId}`
-    : nsOpportunityId ? `NS-${nsOpportunityId}`
-    : `SCOUT-${Date.now()}`;
+  const rfqRef = currentRfqRef
+    || (procoreBidId ? `PROCORE-${procoreBidId}` : nsOpportunityId ? `NS-${nsOpportunityId}` : `SCOUT-${Date.now()}`);
+  sessionStorage.removeItem('scout_rfq_ref'); // this RFQ is finalized — next one (via clearForm) mints fresh
   const body = {
-    procore_rfq_id: sourceKey,
+    rfq_ref: rfqRef,
     project_name: payload.projname || '(untitled project)',
     company_name: payload.client,
     procore_vendor_id: payload.procore_company_id || null,
@@ -1921,6 +1923,39 @@ function pushToCRM(payload, { qualificationResult, noBidReason, procoreBidId, ns
     headers: { 'Content-Type': 'application/json', 'X-CRM-Service-Key': CRM_SERVICE_KEY },
     body: JSON.stringify(body)
   }).catch(e => console.error('CRM intake push failed (non-blocking):', e));
+}
+
+// Mints (or reuses, within this same browser tab) a CRM rfq_ref for the RFQ
+// about to be worked. sessionStorage is per-tab by design — 3 tabs open at
+// once each mint their own ref and never collide (crm-worker's counter is
+// keyed per estimator per day, not per tab), a refresh of THIS tab reuses the
+// same ref (sessionStorage survives a same-tab reload), and closing a tab
+// then opening a new one does NOT resurface it (sessionStorage is destroyed
+// on close) — that ref is simply never used again, leaving a harmless gap in
+// the day's sequence. Never blocks the rest of SCOUT: a failed mint just
+// leaves currentRfqRef null, and pushToCRM() falls back to its own derived
+// key when that happens.
+async function initRfqRef() {
+  const cached = sessionStorage.getItem('scout_rfq_ref');
+  if (cached) { currentRfqRef = cached; updateRfqRefBadge(); return; }
+  try {
+    const res = await fetch(CRM_MINT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${scoutAuthToken}` }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.rfq_ref) {
+      currentRfqRef = data.rfq_ref;
+      sessionStorage.setItem('scout_rfq_ref', data.rfq_ref);
+      updateRfqRefBadge();
+    }
+  } catch (e) {
+    console.error('RFQ ref mint failed (non-blocking):', e);
+  }
+}
+function updateRfqRefBadge() {
+  const el = document.getElementById('scout-rfq-ref-badge');
+  if (el) el.textContent = currentRfqRef ? `RFQ: ${currentRfqRef}` : '';
 }
 
 async function submitRFQ(){
@@ -2346,6 +2381,13 @@ function clearForm(){
   const pcf=document.getElementById('pipeline-conflict-field'); if(pcf) pcf.style.display='none';
   document.getElementById('pipeline-conflicts-list').innerHTML='';
   copilotHistory = [];
+  // Starting a genuinely new RFQ in this tab — release any leftover ref
+  // (finished RFQs already clear this in pushToCRM; this also covers
+  // "cleared without ever submitting") and mint the next one now.
+  currentRfqRef = null;
+  sessionStorage.removeItem('scout_rfq_ref');
+  updateRfqRefBadge();
+  initRfqRef();
   currentRFQContext = '';
   totalTokensUsed = 0;
   document.getElementById('copilot-messages').innerHTML = '';
