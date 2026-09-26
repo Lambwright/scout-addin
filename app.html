@@ -355,6 +355,10 @@
               </div>
             </div>
             <div id="intake-status" class="intake-status" style="display:none;"></div>
+            <div id="client-blacklist-warning" style="display:none;margin-top:8px;padding:10px 14px;background:var(--red-light);border:1px solid var(--red-border);border-radius:var(--radius-sm);align-items:center;gap:8px;font-size:12px;color:var(--text-primary);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--red)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span id="client-blacklist-message"></span>
+            </div>
           </div>
           <button class="btn btn-green" onclick="parseRFQ()" id="parse-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
@@ -570,6 +574,7 @@ const LINK_RECORDS_URL = 'https://defaultabdcd2d065fe4a69810a2842727115.e7.envir
 // low-sensitivity intake endpoint.
 const CRM_INTAKE_URL = 'https://crm-worker.ben-a90.workers.dev/intake/scout';
 const CRM_MINT_URL = 'https://crm-worker.ben-a90.workers.dev/rfq-ids/mint';
+const CRM_LOOKUP_URL = 'https://crm-worker.ben-a90.workers.dev/companies/lookup';
 const CRM_SERVICE_KEY = '9bcd4d09a9bb161359842e0b8e608653e3bd361f7378996f';
 
 // Only Warren and Alfonso are real estimators - everyone else (Ben, Josh, Mary
@@ -1392,6 +1397,32 @@ function filterClients(val) {
   openDropdown();
 }
 
+// Do-Not-Pursue / Do-Not-Work-With check against CRM's own account segment
+// (CRM/worker's /companies/lookup, already built for the hot-lead check —
+// general enough to reuse here without any CRM-side change). Non-blocking:
+// a lookup failure or unmatched company just means no warning shows, it
+// never prevents qualifying or submitting an RFQ.
+const BLACKLIST_SEGMENTS = { do_not_pursue: 'Do Not Pursue', do_not_work_with: 'Do Not Work With' };
+async function checkClientBlacklist(name) {
+  const warning = document.getElementById('client-blacklist-warning');
+  const message = document.getElementById('client-blacklist-message');
+  warning.style.display = 'none';
+  if (!name) return;
+  try {
+    const res = await fetch(`${CRM_LOOKUP_URL}?name=${encodeURIComponent(name)}`, {
+      headers: { 'X-CRM-Service-Key': CRM_SERVICE_KEY }
+    });
+    const data = await res.json();
+    const segment = data?.found && data.company?.account_segment;
+    if (segment && BLACKLIST_SEGMENTS[segment]) {
+      message.textContent = `CRM has this account flagged "${BLACKLIST_SEGMENTS[segment]}" — check with leadership before proceeding.`;
+      warning.style.display = 'flex';
+    }
+  } catch (e) {
+    console.error('CRM blacklist check failed (non-blocking):', e);
+  }
+}
+
 function selectClient(name, nsId, procoreId) {
   selectedClient = name;
   selectedClientNSID = nsId || '';
@@ -1399,6 +1430,7 @@ function selectClient(name, nsId, procoreId) {
   document.getElementById('f-client').value = name;
   closeDropdown();
   loadExistingContacts(selectedClientNSID);
+  checkClientBlacklist(name);
 
   // Fetch Procore company ID from NetSuite if not already populated. This is
   // NOT a field on the customer record itself - it lives in a separate custom
@@ -2377,6 +2409,7 @@ function clearForm(){
   selectedClientProcoreID='';
   existingClientContacts=[];
   document.getElementById('existing-contacts-info').textContent='';
+  document.getElementById('client-blacklist-warning').style.display='none';
   document.getElementById('add-contact-action').style.display='none';
   document.getElementById('procore-contact-sync-status').style.display='none';
   ['f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
