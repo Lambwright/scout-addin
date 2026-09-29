@@ -1898,8 +1898,26 @@ async function parseRFQ(){
   try{
     const response=await fetch(PARSE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email_text:email,client_name:client})});
     const text=await response.text();
+    // Surface the *actual* failure instead of one generic message for every
+    // possible cause — a bad HTTP status, an unparseable body (e.g. an
+    // Anthropic credit/rate-limit error passed through as plain text), and a
+    // genuine network failure all look identical to a bug report otherwise.
+    if(!response.ok){
+      status.textContent=`Parse failed (HTTP ${response.status}): ${text.slice(0,300)}`;
+      console.error('parseRFQ non-OK response:', response.status, text);
+      btn.disabled=false;
+      return;
+    }
     const clean=text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
-    const data=JSON.parse(clean);
+    let data;
+    try {
+      data=JSON.parse(clean);
+    } catch (parseErr) {
+      status.textContent=`Parse failed — unexpected response: ${text.slice(0,300)}`;
+      console.error('parseRFQ JSON.parse failed:', parseErr, text);
+      btn.disabled=false;
+      return;
+    }
     if(data.fname) document.getElementById('f-fname').value=data.fname;
     if(data.lname) document.getElementById('f-lname').value=data.lname;
     if(data.role) document.getElementById('f-role').value=data.role;
@@ -1929,7 +1947,7 @@ async function parseRFQ(){
 
     activateCopilot(email, data);
   }catch(e){
-    status.textContent='Parse failed — check connection and try again.';
+    status.textContent=`Parse failed — network error: ${e.message}`;
     console.error(e);
   }
   btn.disabled=false;
