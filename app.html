@@ -359,6 +359,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--red)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               <span id="client-blacklist-message"></span>
             </div>
+            <div id="client-winrate-info" style="display:none;margin-top:8px;padding:8px 14px;background:var(--bg-card, transparent);border:1px solid var(--border-color, #ccc);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary, inherit);"></div>
           </div>
           <button class="btn btn-green" onclick="parseRFQ()" id="parse-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
@@ -1412,7 +1413,9 @@ const BLACKLIST_SEGMENTS = { do_not_pursue: 'Do Not Pursue', do_not_work_with: '
 async function checkClientBlacklist(name) {
   const warning = document.getElementById('client-blacklist-warning');
   const message = document.getElementById('client-blacklist-message');
+  const winInfo = document.getElementById('client-winrate-info');
   warning.style.display = 'none';
+  winInfo.style.display = 'none';
   if (!name) return;
   try {
     const res = await fetch(`${CRM_LOOKUP_URL}?name=${encodeURIComponent(name)}`, {
@@ -1424,9 +1427,24 @@ async function checkClientBlacklist(name) {
       message.textContent = `CRM has this account flagged "${BLACKLIST_SEGMENTS[segment]}" — check with leadership before proceeding.`;
       warning.style.display = 'flex';
     }
+    showClientWinRate(winInfo, data?.found && data.win_stats);
   } catch (e) {
     console.error('CRM blacklist check failed (non-blocking):', e);
   }
+}
+
+// Win history with this client, from CRM — information only, it does not
+// change SCOUT's score or block anything (Ben, 2026-10-06). Shown as a plain
+// line under the client; hidden when CRM has no decided bids for them.
+function showClientWinRate(el, stats) {
+  if (!stats || !stats.decided_count) return;
+  const pct = Math.round(stats.win_rate * 100);
+  const avg = stats.overall_win_rate != null ? Math.round(stats.overall_win_rate * 100) : null;
+  const bandText = { over: '▲ above our average', at: '● about our average', under: '▼ below our average' }[stats.band] || '';
+  const small = stats.band ? '' : ' (too few decided bids to compare with our average)';
+  el.textContent = 'CRM win history with this client: ' + stats.won + ' won of ' + stats.decided_count + ' decided (' + pct + '%)' +
+    (avg != null ? ' vs ' + avg + '% overall' : '') + (bandText ? ' — ' + bandText : '') + small + '.';
+  el.style.display = 'block';
 }
 
 function selectClient(name, nsId, procoreId) {
@@ -2434,6 +2452,7 @@ function clearForm(){
   existingClientContacts=[];
   document.getElementById('existing-contacts-info').textContent='';
   document.getElementById('client-blacklist-warning').style.display='none';
+  const winInfoEl=document.getElementById('client-winrate-info'); if(winInfoEl) winInfoEl.style.display='none';
   document.getElementById('add-contact-action').style.display='none';
   document.getElementById('procore-contact-sync-status').style.display='none';
   ['f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
