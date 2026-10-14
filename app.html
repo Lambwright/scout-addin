@@ -1810,7 +1810,7 @@ const DISQUALIFIERS = [
 
 const CRITERIA = [
   { id:'client_award_status', label:'Client award status', weight:7, section:1, options:[{label:'Client has won project / confirmed award',score:10},{label:'Estimated chance of GC win >50%',score:5},{label:'Unknown',score:3},{label:'Client has NOT won / multiple bidders',score:1}]},
-  { id:'payment_record', label:'Payment record', weight:8, section:1, options:[{label:'GOOD – No known issues',score:10},{label:'AVERAGE – Minor previous issues',score:5},{label:'New client / Unknown',score:3},{label:'POOR – Major issues / Outstanding',score:1}]},
+  { id:'payment_record', label:'Payment record', weight:9, section:1, options:[{label:'GOOD – No known issues',score:10},{label:'AVERAGE – Minor previous issues',score:5},{label:'New client / Unknown',score:3},{label:'POOR – Major issues / Outstanding',score:1}]},
   { id:'win_potential', label:'Win potential (bid history)', weight:5, section:1, options:[{label:'Awarded',score:10},{label:'At least 1 award per 5 bids',score:8},{label:'>5 previous bids with no award (1 yr)',score:5},{label:'New client / Unknown',score:3},{label:'Known bid shopper',score:1}]},
   { id:'relationship_strength', label:'Relationship strength', weight:5, section:1, options:[{label:'Established relationship; regular communication',score:10},{label:'Some prior contact; warm relationship / Referred',score:5},{label:'No relationship / unknown',score:3},{label:'Cold / inbound only',score:1}]},
   { id:'client_type', label:'Client type', weight:4, section:1, options:[{label:'Luxury brand / partner – value driven',score:10},{label:'Millwork shop – value driven',score:5},{label:'GC / homeowner – neutral',score:3},{label:'Any – purely price driven / multi-bid',score:1}]},
@@ -1823,14 +1823,19 @@ const CRITERIA = [
   { id:'project_value', label:'Estimated project value', weight:7, section:3, options:[{label:'>$100,000',score:10},{label:'$50,000 – $100,000',score:8},{label:'$5,000 – $50,000',score:5},{label:'Unknown',score:3},{label:'<$5,000',score:1}]},
   { id:'potential_margin', label:'Potential margin', weight:7, section:3, options:[{label:'>40%',score:10},{label:'37% – 40%',score:5},{label:'33% – 37% or unknown',score:3},{label:'<33%',score:1}]},
   { id:'budget_clarity', label:'Budget clarity', weight:4, section:3, options:[{label:'Budget confirmed / owner-approved',score:10},{label:'Budget range indicated',score:5},{label:'Budget unknown but project is real',score:3},{label:'No budget clarity – speculative',score:1}]},
-  { id:'installer_saturation', label:'Installer / competitor saturation', weight:4, section:3, options:[{label:'Client has no ability to self-perform',score:10},{label:'Client can self-perform but typically does not',score:5},{label:'Unknown',score:3},{label:'Client usually self-performs',score:1}]},
-  { id:'crew_availability', label:'Crew / manpower availability', weight:5, section:4, options:[{label:'Crew available – no conflicts',score:10},{label:'Crew available with minor scheduling adjustment',score:8},{label:'Crew partially available – requires planning',score:5},{label:'No crew available – conflicts with active projects',score:3},{label:'No crew available – outside all service regions',score:1}]},
-  { id:'pipeline_conflict', label:'Pipeline conflict', weight:5, section:4, options:[{label:'No conflict with active pipeline',score:10},{label:'Minor overlap – manageable',score:5},{label:'Moderate overlap – requires prioritization',score:3},{label:'Significant conflict – strains operations',score:1}]},
-  { id:'operational_complexity', label:'Operational complexity', weight:5, section:4, options:[{label:'Standard complexity – familiar scope',score:10},{label:'Moderate complexity – some novel elements',score:5},{label:'High complexity – specialized trade / access',score:3},{label:'Extreme complexity – northern / remote / union',score:1}]},
+  { id:'installer_saturation', label:'Installer / competitor saturation', weight:4, section:3, options:[{label:'Client has no ability to self-perform',score:10},{label:'Unknown',score:3},{label:'Client usually self-performs',score:1}]},
+  { id:'crew_availability', label:'Crew / manpower availability', weight:7, section:4, options:[{label:'Crew available – no conflicts',score:10},{label:'Crew available with minor scheduling adjustment',score:8},{label:'Crew partially available – requires planning',score:5},{label:'No crew available – conflicts with active projects',score:3},{label:'No crew available – outside all service regions',score:1}]},
+  { id:'pipeline_conflict', label:'Pipeline conflict', weight:6, section:4, options:[{label:'No conflict with active pipeline',score:10},{label:'Minor overlap – manageable',score:5},{label:'Moderate overlap – requires prioritization',score:3},{label:'Significant conflict – strains operations',score:1}]},
+  { id:'operational_complexity', label:'Operational complexity', weight:7, section:4, options:[{label:'Standard complexity – familiar scope',score:10},{label:'Moderate complexity – some novel elements',score:5},{label:'High complexity – specialized trade / access',score:3},{label:'Extreme complexity – northern / remote / union',score:1}]},
 ];
 
 const SECTION_LABELS = {1:'Client / GC qualification',2:'Project fit',3:'Commercial viability',4:'Operational capacity'};
 const SECTION_MAX = {1:30,2:28,3:22,4:20};
+
+// Points a zone earns: (weighted score / max) x the zone's max, rounded. Multiplies BEFORE
+// dividing: raw/max*zoneMax turned an exact .5 into 12.4999... and rounded it down,
+// while the spreadsheet's ROUND rounds it up, so the two disagreed by a point.
+function zonePoints(raw, max, section){ return max>0?Math.round((raw*SECTION_MAX[section])/max):0; }
 
 // Tier floors (inclusive): A 80-100, B 69-79, C 58-68, 57 and below is No bid.
 // Single source of truth for the tier badge, the bid-board auto-push, the
@@ -1947,7 +1952,7 @@ function updateScore(){
   });
   const sectionScores=[1,2,3,4].map(s=>{
     const el=document.getElementById('sec-score-'+s);
-    const scaled=secMax[s]>0?Math.round((secRaw[s]/secMax[s])*SECTION_MAX[s]):0;
+    const scaled=zonePoints(secRaw[s],secMax[s],s);
     if(el) el.textContent=scaled+' / '+SECTION_MAX[s];
     return scaled;
   });
@@ -2175,7 +2180,7 @@ async function submitRFQ(){
     const crit=CRITERIA.filter(c=>c.section===s);
     const raw=crit.reduce((a,c)=>a+(scoringValues[c.id]||0)*c.weight,0);
     const maxR=crit.reduce((a,c)=>a+10*c.weight,0);
-    sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
+    sectionScores['section_'+s]=zonePoints(raw,maxR,s);
   });
   const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
   const tier=disqTriggered.length>0?'No bid':total>=TIER_A_MIN?'A':total>=TIER_B_MIN?'B':total>=TIER_C_MIN?'C':'No bid';
@@ -2324,7 +2329,7 @@ async function declineRFQ(){
     const crit=CRITERIA.filter(c=>c.section===s);
     const raw=crit.reduce((a,c)=>a+(scoringValues[c.id]||0)*c.weight,0);
     const maxR=crit.reduce((a,c)=>a+10*c.weight,0);
-    sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
+    sectionScores['section_'+s]=zonePoints(raw,maxR,s);
   });
   const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
   const tier=disqTriggered.length>0?'No bid':total>=TIER_A_MIN?'A':total>=TIER_B_MIN?'B':total>=TIER_C_MIN?'C':'No bid';
