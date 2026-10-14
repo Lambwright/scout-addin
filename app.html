@@ -214,8 +214,8 @@
     .score-ruler { position: relative; height: 8px; border-radius: 4px; overflow: hidden; display: flex; }
     .ruler-zone { height: 100%; }
     /* Band widths are set from the TIER_*_MIN constants in buildRuler() */
-    .ruler-zone.no-bid { background: #fee2e2; flex: 58; }
-    .ruler-zone.c { background: #dbeafe; flex: 11; }
+    .ruler-zone.no-bid { background: #fee2e2; flex: 57; }
+    .ruler-zone.c { background: #dbeafe; flex: 12; }
     .ruler-zone.b { background: #fef9c3; flex: 11; }
     .ruler-zone.a { background: #dcfce7; flex: 20; }
     .ruler-marker { position: absolute; top: -3px; width: 3px; height: 14px; background: var(--text-primary); border-radius: 2px; transition: left 0.3s ease; box-shadow: 0 0 0 2px var(--bg-card); }
@@ -485,7 +485,7 @@
 
       <div class="low-tier-confirm" id="low-tier-confirm" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--red-light);border:1px solid var(--red-border);border-radius:var(--radius-sm);align-items:center;gap:8px;font-size:12px;color:var(--text-primary);">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--red)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <span>This RFQ scored below Tier B. Check "Push to bid board" above and complete the override fields below to submit anyway.</span>
+        <span>This RFQ is a No Bid (below Tier C). Check "Push to bid board" above and complete the override fields below to submit anyway.</span>
       </div>
       <div class="action-row">
         <button class="btn btn-green" onclick="submitRFQ()" id="submit-btn">
@@ -1832,10 +1832,11 @@ const CRITERIA = [
 const SECTION_LABELS = {1:'Client / GC qualification',2:'Project fit',3:'Commercial viability',4:'Operational capacity'};
 const SECTION_MAX = {1:30,2:28,3:22,4:20};
 
-// Tier floors (inclusive): A 80-100, B 69-79, C 58-68, below that is No bid.
+// Tier floors (inclusive): A 80-100, B 69-79, C 57-68, below 57 is No bid.
 // Single source of truth for the tier badge, the bid-board auto-push, the
-// submit/decline tier written to the records, and the ruler's colour bands.
-const TIER_A_MIN = 80, TIER_B_MIN = 69, TIER_C_MIN = 58;
+// submit/decline tier written to the records, the submit gate and the ruler's
+// colour bands. Keep the spreadsheet's tier formula in step with these.
+const TIER_A_MIN = 80, TIER_B_MIN = 69, TIER_C_MIN = 57;
 
 function buildDisqualifiers(){
   const g=document.getElementById('disq-grid');
@@ -1901,7 +1902,8 @@ function checkSubmitGate(){
   const scoreText = document.getElementById('score-display').textContent;
   const total = parseInt(scoreText) || 0;
   const disq = document.getElementById('tier-badge').textContent === 'Disqualified';
-  const lowTier = disq || total === 0 || total < TIER_B_MIN; // matches the "scored below Tier B" message
+  // Only No Bid needs an override to push; Tier C (and up) submits freely.
+  const lowTier = disq || total === 0 || total < TIER_C_MIN;
 
   if(total === 0 && !disq){
     // Nothing scored yet
