@@ -213,12 +213,18 @@
     .score-ruler-wrap { margin-top: 10px; }
     .score-ruler { position: relative; height: 8px; border-radius: 4px; overflow: hidden; display: flex; }
     .ruler-zone { height: 100%; }
-    .ruler-zone.no-bid { background: #fee2e2; flex: 50; }
-    .ruler-zone.c { background: #dbeafe; flex: 22; }
-    .ruler-zone.b { background: #fef9c3; flex: 18; }
-    .ruler-zone.a { background: #dcfce7; flex: 10; }
+    /* Band widths are set from the TIER_*_MIN constants in buildRuler() */
+    .ruler-zone.no-bid { background: #fee2e2; flex: 58; }
+    .ruler-zone.c { background: #dbeafe; flex: 11; }
+    .ruler-zone.b { background: #fef9c3; flex: 11; }
+    .ruler-zone.a { background: #dcfce7; flex: 20; }
     .ruler-marker { position: absolute; top: -3px; width: 3px; height: 14px; background: var(--text-primary); border-radius: 2px; transition: left 0.3s ease; box-shadow: 0 0 0 2px var(--bg-card); }
-    .ruler-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-tertiary); margin-top: 3px; letter-spacing: 0.04em; }
+    /* Labels sit at their real percentage along the bar (space-between spread
+       them evenly, which put "72" at the middle instead of at 72%). */
+    .ruler-labels { position: relative; height: 12px; font-size: 9px; color: var(--text-tertiary); margin-top: 3px; letter-spacing: 0.04em; }
+    .ruler-labels span { position: absolute; top: 0; transform: translateX(-50%); }
+    .ruler-labels span:first-child { transform: none; }
+    .ruler-labels span:last-child { transform: translateX(-100%); }
 
     @media (max-width: 640px) {
       .disq-grid { grid-template-columns: 1fr; }
@@ -387,7 +393,7 @@
               <div class="ruler-zone a"></div>
               <div class="ruler-marker" id="ruler-marker" style="left:0%"></div>
             </div>
-            <div class="ruler-labels"><span>0</span><span>50</span><span>72</span><span>90</span><span>100</span></div>
+            <div class="ruler-labels" id="ruler-labels"></div>
           </div>
         </div>
         <div class="section-scores-display" id="section-scores">—</div>
@@ -1101,7 +1107,8 @@ function updateTokenDisplay() {
 
 function activateCopilot(rfqEmail, parsedData) {
   currentRFQContext = rfqEmail;
-  document.getElementById('copilot-empty').style.display = 'none';
+  const copilotEmptyEl = document.getElementById('copilot-empty');
+  if (copilotEmptyEl) copilotEmptyEl.style.display = 'none'; // never let a missing placeholder stop the Copilot starting
   document.getElementById('copilot-send').disabled = false;
   document.getElementById('copilot-input').disabled = false;
   const parseBtn = document.getElementById('parse-btn');
@@ -1159,8 +1166,8 @@ Start with a brief summary of what you found, what fields are missing, and any s
 IMPORTANT: You can update form fields directly. When you want to update a field, include a JSON block at the END of your message in this exact format:
 <form_update>{"field":"field_id","value":"new value"}</form_update>
 Available field IDs: f-fname, f-lname, f-phone, f-email, f-enduser, f-projname, f-projaddr, f-notes, f-risks, f-date
-For scoring dropdowns use: crit-client_award_status, crit-payment_record, crit-win_potential, crit-relationship_strength, crit-client_loyalty, crit-client_type, crit-project_type_match, crit-sector_alignment, crit-geographic_fit, crit-scope_clarity, crit-timeline_realism, crit-rollout_scale, crit-project_value, crit-potential_margin, crit-budget_clarity, crit-installer_saturation, crit-estimating_effort, crit-crew_availability, crit-pipeline_conflict, crit-operational_complexity
-For scoring dropdowns, value should be the numeric score: 10, 5, 3, or 1.
+For scoring dropdowns use: crit-client_award_status, crit-payment_record, crit-win_potential, crit-relationship_strength, crit-client_type, crit-project_type_match, crit-sector_alignment, crit-geographic_fit, crit-scope_clarity, crit-timeline_realism, crit-rollout_scale, crit-project_value, crit-potential_margin, crit-budget_clarity, crit-installer_saturation, crit-crew_availability, crit-pipeline_conflict, crit-operational_complexity
+For scoring dropdowns, value should be the numeric score: 10, 5, 3, or 1 — except crit-sector_alignment, which scores 10, 8, 5, or 3.
 You can include multiple form_update blocks. Only update fields when you have clear, specific evidence from the email or conversation — never assume or infer.
 You are also available to help the estimator troubleshoot the SCOUT form itself. If they ask why something isn't working, walk them through the following: if the client dropdown is missing companies, suggest hitting the ↻ refresh button; if Parse with Claude isn't working, suggest checking their internet connection or filling the form manually; if submission indicators show red, suggest hitting the Retry button for that destination; if all indicators are stuck, suggest refreshing the page and resubmitting. Remind them that the form works fully without Claude — all records will still be created in Procore, NetSuite, and Excel even if parsing and copilot are unavailable. For adding new clients to the directory, direct them to josh@einbau.ca. For any technical issues with the app itself, direct them to ben@einbau.ca. If an estimator mentions they received an RFQ from a portal like BidConnect or Merx that has limited information, proactively suggest they download any attached documents and upload them to this chat — you can read PDFs, drawings, and images to help fill in scoring gaps that the portal listing didn't include.`;
   copilotHistory.push({ role: 'user', content: systemContext });
@@ -1168,16 +1175,62 @@ You are also available to help the estimator troubleshoot the SCOUT form itself.
     document.getElementById('copilot-input').placeholder = '¡Aliméntame, Alfonso!';
   }
 
+  // The typing-indicator message is what replaceLastCopilotMessage swaps the
+  // reply (or the failure notice) into — without it nothing ever displays.
   addCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
+  requestCopilotIntro();
+}
 
-  fetch('https://scout.ben-a90.workers.dev', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
-    body: JSON.stringify({ messages: copilotHistory })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if(data.error) { replaceLastCopilotMessage('assistant', `API error: ${data.error.message}`); return; }
+// Turns whatever came back from scout-worker into a readable reason. Handles
+// both shapes: Anthropic's {error:{type,message}} and the worker's own
+// {error:'forbidden', message} / {error:'unauthorized'} (a 401/403 used to
+// render as "API error: undefined" because error is a string, not an object).
+function copilotFailureReason(status, data, rawText) {
+  if (data && data.error && typeof data.error === 'object' && data.error.message) return data.error.message;
+  if (data && typeof data.message === 'string') return data.message;
+  if (data && typeof data.error === 'string') {
+    if (data.error === 'unauthorized') return 'Your session expired — log out and back in.';
+    return data.error;
+  }
+  if (status && status !== 200) return `HTTP ${status}${rawText ? ': ' + rawText.slice(0, 200) : ''}`;
+  return 'Unexpected response' + (rawText ? ': ' + rawText.slice(0, 200) : '');
+}
+
+// Shows the real reason a Copilot call failed, with a Retry that re-runs the
+// opening call. The parse button locks after the first parse, so without this
+// a failed opening call left the estimator with no way to try again.
+function showCopilotIntroFailure(reason) {
+  const retryId = 'copilot-retry-' + Date.now();
+  replaceLastCopilotMessage('assistant',
+    `Copilot couldn't load: ${escapeHtml(reason)}<br><button type="button" id="${retryId}" class="btn btn-ghost" style="margin-top:6px;padding:3px 10px;font-size:11px;">Retry</button>`);
+  const btn = document.getElementById(retryId);
+  if (btn) btn.onclick = () => {
+    replaceLastCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
+    requestCopilotIntro();
+  };
+}
+
+async function requestCopilotIntro() {
+  let res, rawText = '', data = null;
+  try {
+    res = await fetch('https://scout.ben-a90.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
+      body: JSON.stringify({ messages: copilotHistory })
+    });
+    rawText = await res.text();
+    try { data = JSON.parse(rawText); } catch (e) { data = null; }
+  } catch (e) {
+    console.error('copilot intro (network):', e);
+    showCopilotIntroFailure('network error — ' + e.message);
+    return;
+  }
+  if (!res.ok || !data || data.error || !data.content || !data.content[0] || typeof data.content[0].text !== 'string') {
+    console.error('copilot intro failed:', res.status, rawText);
+    showCopilotIntroFailure(copilotFailureReason(res.status, data, rawText));
+    return;
+  }
+  try {
     const reply = data.content[0].text;
     copilotHistory.push({ role: 'assistant', content: reply });
     totalTokensUsed += (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
@@ -1185,11 +1238,10 @@ You are also available to help the estimator troubleshoot the SCOUT form itself.
     saveCopilotSession();
     if(totalTokensUsed > TOKEN_LIMIT) triggerGandalf();
     replaceLastCopilotMessage('assistant', reply);
-  })
-  .catch(e => {
-    replaceLastCopilotMessage('assistant', 'Could not connect to Claude. Check your connection.');
-    console.error(e);
-  });
+  } catch (e) {
+    console.error('copilot intro (render):', e);
+    showCopilotIntroFailure('could not display the reply — ' + e.message);
+  }
 }
 
 async function sendCopilotMessage() {
@@ -1240,8 +1292,16 @@ async function sendCopilotMessage() {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
       body: JSON.stringify({ messages: validatedMessages })
     });
-    const data = await response.json();
-    if(data.error) { replaceLastCopilotMessage('assistant', `API error: ${data.error.message}`); document.getElementById('copilot-send').disabled = false; input.focus(); return; }
+    const rawText = await response.text();
+    let data = null;
+    try { data = JSON.parse(rawText); } catch (e) { data = null; }
+    if(!response.ok || !data || data.error || !data.content || !data.content[0] || typeof data.content[0].text !== 'string') {
+      console.error('copilot message failed:', response.status, rawText);
+      // Roll back the unanswered user message so the next attempt isn't a malformed history
+      if(copilotHistory[copilotHistory.length-1]?.role === 'user') copilotHistory.pop();
+      replaceLastCopilotMessage('assistant', `Error: ${escapeHtml(copilotFailureReason(response.status, data, rawText))} — try again.`);
+      document.getElementById('copilot-send').disabled = false; input.focus(); return;
+    }
     const reply = data.content[0].text;
     copilotHistory.push({ role: 'assistant', content: reply });
     totalTokensUsed += (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
@@ -1254,7 +1314,7 @@ async function sendCopilotMessage() {
     if(copilotHistory[copilotHistory.length-1]?.role === 'user') {
       copilotHistory.pop();
     }
-    replaceLastCopilotMessage('assistant', 'Error — try again.');
+    replaceLastCopilotMessage('assistant', `Error: ${escapeHtml(e.message)} — try again.`);
     console.error(e);
   }
 
@@ -1743,7 +1803,9 @@ const DISQUALIFIERS = [
   'Bid due in <24 hrs with incomplete drawings',
   'Project outside all Einbau service regions',
   'Client has active payment dispute with Einbau',
-  'Scope entirely outside millwork installation'
+  'Scope entirely outside millwork installation',
+  'RFQ is too small to consider: submit T&M rates only',
+  'Budget amount presented by client is too low for Einbau to accept'
 ];
 
 const CRITERIA = [
@@ -1751,10 +1813,9 @@ const CRITERIA = [
   { id:'payment_record', label:'Payment record', weight:8, section:1, options:[{label:'GOOD – No known issues',score:10},{label:'AVERAGE – Minor previous issues',score:5},{label:'New client / Unknown',score:3},{label:'POOR – Major issues / Outstanding',score:1}]},
   { id:'win_potential', label:'Win potential (bid history)', weight:5, section:1, options:[{label:'At least 1 award per 5 bids',score:10},{label:'>5 previous bids with no award (1 yr)',score:5},{label:'New client / Unknown',score:3},{label:'Known bid shopper',score:1}]},
   { id:'relationship_strength', label:'Relationship strength', weight:5, section:1, options:[{label:'Established relationship; regular communication',score:10},{label:'Some prior contact; warm relationship / Referred',score:5},{label:'No relationship / unknown',score:3},{label:'Cold / inbound only',score:1}]},
-  { id:'client_loyalty', label:'Client loyalty to Einbau', weight:4, section:1, options:[{label:'Regularly awards large projects to Einbau',score:10},{label:'Limited previous awards to Einbau',score:5},{label:'Unknown',score:3},{label:'No previous awards to Einbau',score:1}]},
   { id:'client_type', label:'Client type', weight:4, section:1, options:[{label:'Luxury brand / partner – value driven',score:10},{label:'Millwork shop – value driven',score:5},{label:'GC / homeowner – neutral',score:3},{label:'Any – purely price driven / multi-bid',score:1}]},
-  { id:'project_type_match', label:'Project type match', weight:7, section:2, options:[{label:'Install millwork only – core scope',score:10},{label:'Supply & install millwork',score:5},{label:'Unknown scope',score:3},{label:'Mostly out of scope / union / no local installer',score:1}]},
-  { id:'sector_alignment', label:'Sector alignment', weight:5, section:2, options:[{label:'Retail rollout / commercial fit – core sector',score:10},{label:'Restaurant / hospitality / high-end residential',score:5},{label:'Industrial / mixed / adjacent sector',score:3},{label:'Out of sector / unclear',score:1}]},
+  { id:'project_type_match', label:'Project type match', weight:7, section:2, options:[{label:'Install millwork only – core scope',score:10},{label:'Supply & install millwork',score:5},{label:'Unknown scope',score:3},{label:'Mostly out of scope / no local installer',score:1}]},
+  { id:'sector_alignment', label:'Sector alignment', weight:5, section:2, options:[{label:'Retail rollout / commercial fit – core sector',score:10},{label:'Restaurant / hospitality / high-end residential',score:8},{label:'Industrial / mixed / adjacent sector',score:5},{label:'Out of sector / unclear',score:3}]},
   { id:'geographic_fit', label:'Geographic fit', weight:5, section:2, options:[{label:'Within core service region',score:10},{label:'Reachable – moderate mobilization',score:5},{label:'Remote / northern – Einbau North scope',score:3},{label:'Out of region – no installer coverage',score:1}]},
   { id:'scope_clarity', label:'Scope clarity / drawing completeness', weight:4, section:2, options:[{label:'Exactly specified by client – ready to estimate',score:10},{label:'Noted on schedule; identifiable on drawings',score:5},{label:'Requires moderate drawing review (≤10 sheets)',score:3},{label:'Requires extensive review (>10 sheets) / unclear',score:1}]},
   { id:'timeline_realism', label:'Project timeline realism', weight:4, section:2, options:[{label:'Due >5 days – sufficient lead time',score:10},{label:'Due 3–5 days',score:5},{label:'Due 1–3 days',score:3},{label:'Due <24 hrs – unrealistic',score:1}]},
@@ -1763,7 +1824,6 @@ const CRITERIA = [
   { id:'potential_margin', label:'Potential margin', weight:7, section:3, options:[{label:'>40%',score:10},{label:'37% – 40%',score:5},{label:'33% – 37% or unknown',score:3},{label:'<33%',score:1}]},
   { id:'budget_clarity', label:'Budget clarity', weight:4, section:3, options:[{label:'Budget confirmed / owner-approved',score:10},{label:'Budget range indicated',score:5},{label:'Budget unknown but project is real',score:3},{label:'No budget clarity – speculative',score:1}]},
   { id:'installer_saturation', label:'Installer / competitor saturation', weight:4, section:3, options:[{label:'Client has no ability to self-perform',score:10},{label:'Client can self-perform but typically does not',score:5},{label:'Unknown',score:3},{label:'Client usually self-performs',score:1}]},
-  { id:'estimating_effort', label:'Estimating effort required', weight:5, section:4, options:[{label:'Low effort – simple scope, standard package',score:10},{label:'Moderate effort – typical project',score:5},{label:'High effort – complex scope, significant review',score:3},{label:'Very high effort – labour intensive, unclear scope',score:1}]},
   { id:'crew_availability', label:'Crew / manpower availability', weight:5, section:4, options:[{label:'Crew available – no conflicts',score:10},{label:'Crew available with minor scheduling adjustment',score:5},{label:'Crew partially available – requires planning',score:3},{label:'No crew available – conflicts with active projects',score:1}]},
   { id:'pipeline_conflict', label:'Pipeline conflict', weight:5, section:4, options:[{label:'No conflict with active pipeline',score:10},{label:'Minor overlap – manageable',score:5},{label:'Moderate overlap – requires prioritization',score:3},{label:'Significant conflict – strains operations',score:1}]},
   { id:'operational_complexity', label:'Operational complexity', weight:5, section:4, options:[{label:'Standard complexity – familiar scope',score:10},{label:'Moderate complexity – some novel elements',score:5},{label:'High complexity – specialized trade / access',score:3},{label:'Extreme complexity – northern / remote / union',score:1}]},
@@ -1771,6 +1831,11 @@ const CRITERIA = [
 
 const SECTION_LABELS = {1:'Client / GC qualification',2:'Project fit',3:'Commercial viability',4:'Operational capacity'};
 const SECTION_MAX = {1:30,2:28,3:22,4:20};
+
+// Tier floors (inclusive): A 80-100, B 69-79, C 58-68, below that is No bid.
+// Single source of truth for the tier badge, the bid-board auto-push, the
+// submit/decline tier written to the records, and the ruler's colour bands.
+const TIER_A_MIN = 80, TIER_B_MIN = 69, TIER_C_MIN = 58;
 
 function buildDisqualifiers(){
   const g=document.getElementById('disq-grid');
@@ -1812,6 +1877,19 @@ function buildScoringSection(){
 }
 
 
+// Sizes the ruler's colour bands and places its number labels from the tier
+// constants, so the bar can never disagree with the tier badge again.
+function buildRuler(){
+  const bands={'no-bid':TIER_C_MIN,'c':TIER_B_MIN-TIER_C_MIN,'b':TIER_A_MIN-TIER_B_MIN,'a':100-TIER_A_MIN};
+  Object.keys(bands).forEach(k=>{
+    const z=document.querySelector('.ruler-zone.'+k);
+    if(z) z.style.flex=String(bands[k]);
+  });
+  const labels=document.getElementById('ruler-labels');
+  if(labels) labels.innerHTML=[0,TIER_C_MIN,TIER_B_MIN,TIER_A_MIN,100]
+    .map(v=>`<span style="left:${v}%">${v}</span>`).join('');
+}
+
 function checkSubmitGate(){
   const gateBox = document.getElementById('low-tier-confirm');
   const submitBtn = document.getElementById('submit-btn');
@@ -1823,7 +1901,7 @@ function checkSubmitGate(){
   const scoreText = document.getElementById('score-display').textContent;
   const total = parseInt(scoreText) || 0;
   const disq = document.getElementById('tier-badge').textContent === 'Disqualified';
-  const lowTier = disq || total === 0 || total < 60;
+  const lowTier = disq || total === 0 || total < TIER_B_MIN; // matches the "scored below Tier B" message
 
   if(total === 0 && !disq){
     // Nothing scored yet
@@ -1886,14 +1964,14 @@ function updateScore(){
     const marker=document.getElementById('ruler-marker');
     if(marker) marker.style.left=Math.min(totalScaled,100)+'%';
     let tier,cls,rec;
-    if(totalScaled>=90){tier='Tier A';cls='tier-a';rec='High priority — submit bid. Assign estimator and flag for leadership.';}
-    else if(totalScaled>=72){tier='Tier B';cls='tier-b';rec='Medium priority — qualify further before committing estimating resources.';}
-    else if(totalScaled>=50){tier='Tier C';cls='tier-c';rec='Low priority — monitor only. Do not assign estimating without leadership review.';}
+    if(totalScaled>=TIER_A_MIN){tier='Tier A';cls='tier-a';rec='High priority — submit bid. Assign estimator and flag for leadership.';}
+    else if(totalScaled>=TIER_B_MIN){tier='Tier B';cls='tier-b';rec='Medium priority — qualify further before committing estimating resources.';}
+    else if(totalScaled>=TIER_C_MIN){tier='Tier C';cls='tier-c';rec='Low priority — monitor only. Do not assign estimating without leadership review.';}
     else{tier='No bid';cls='tier-no';rec='No bid — decline or defer. Do not assign estimating resources.';}
     tierEl.className='tier-badge '+cls;
     tierEl.textContent=tier;
     recEl.textContent=rec;
-    const autoPush=totalScaled>=72&&!disqTriggered;
+    const autoPush=totalScaled>=TIER_B_MIN&&!disqTriggered;
     const pushCb=document.getElementById('push-to-bid');
     if(!pushCb.dataset.touched) pushCb.checked=autoPush;
   }
@@ -2089,7 +2167,7 @@ async function submitRFQ(){
     sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
   });
   const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
-  const tier=disqTriggered.length>0?'No bid':total>=90?'A':total>=72?'B':total>=50?'C':'No bid';
+  const tier=disqTriggered.length>0?'No bid':total>=TIER_A_MIN?'A':total>=TIER_B_MIN?'B':total>=TIER_C_MIN?'C':'No bid';
   const payload={
     client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
     role:document.getElementById('f-role').value,phone:document.getElementById('f-phone').value,
@@ -2238,7 +2316,7 @@ async function declineRFQ(){
     sectionScores['section_'+s]=maxR>0?Math.round((raw/maxR)*SECTION_MAX[s]):0;
   });
   const total=Object.values(sectionScores).reduce((a,b)=>a+b,0);
-  const tier=disqTriggered.length>0?'No bid':total>=90?'A':total>=72?'B':total>=50?'C':'No bid';
+  const tier=disqTriggered.length>0?'No bid':total>=TIER_A_MIN?'A':total>=TIER_B_MIN?'B':total>=TIER_C_MIN?'C':'No bid';
 
   const payload={
     client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
@@ -2499,8 +2577,15 @@ function clearForm(){
   initRfqRef();
   currentRFQContext = '';
   totalTokensUsed = 0;
-  document.getElementById('copilot-messages').innerHTML = '';
-  document.getElementById('copilot-empty').style.display = 'flex';
+  // #copilot-empty is a CHILD of #copilot-messages, so the old `innerHTML = ''`
+  // deleted it and the very next line threw on null — aborting the rest of this
+  // function and leaving the placeholder gone for good, which made every later
+  // parse fail inside activateCopilot ("first RFQ works, Copilot never loads
+  // on the next"). Clear only the chat messages and keep the placeholder.
+  const copilotMsgs = document.getElementById('copilot-messages');
+  const copilotEmpty = document.getElementById('copilot-empty');
+  Array.from(copilotMsgs.children).forEach(ch => { if (ch !== copilotEmpty) ch.remove(); });
+  if (copilotEmpty) copilotEmpty.style.display = 'flex';
   document.getElementById('copilot-send').disabled = true;
   document.getElementById('copilot-input').disabled = true;
   const sub = document.querySelector('.copilot-sub');
@@ -2527,6 +2612,7 @@ function initScoutApp(){
   scoutAppInitialized = true;
   buildDisqualifiers();
   buildScoringSection();
+  buildRuler();
   updateScore();
   setTimeout(loadClients, 300);
   initEstimatorField();
