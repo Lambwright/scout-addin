@@ -2201,8 +2201,15 @@ function pushToCRM(payload, { qualificationResult, noBidReason, procoreBidId, ns
     scout_score: payload.total_score,
     scout_tier: payload.tier,
     no_bid_reason: noBidReason || null,
-    bid_due_date: payload.bid_due_date || null
+    bid_due_date: payload.bid_due_date || null,
+    // For CRM's SCOUT stats tab. Only the override path carries a reason and an
+    // approver; disqualifiers[] is sent on every push (empty when none fired).
+    disqualifiers: Array.isArray(payload.disqualifiers) ? payload.disqualifiers.slice(0, 50) : []
   };
+  if (qualificationResult === 'leadership_override') {
+    body.override_reason = payload.override || '';
+    body.override_approver = payload.approver || '';
+  }
   fetch(CRM_INTAKE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CRM-Service-Key': CRM_SERVICE_KEY },
