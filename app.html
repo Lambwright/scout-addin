@@ -198,6 +198,16 @@
     .disq-item label { font-size: 12px; cursor: pointer; line-height: 1.4; color: var(--text-primary); }
     .disq-title { color: var(--red) !important; display: flex; align-items: center; gap: 6px; }
 
+    /* Payment history / Win history cards */
+    .info-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .info-cards .card { margin-bottom: 0; }
+    .info-msg { font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+    .info-head { display: flex; align-items: baseline; gap: 8px; }
+    .info-big { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+    .info-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .info-lines { margin-top: 6px; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+    .info-note { margin-top: 6px; font-size: 11px; color: var(--text-tertiary); }
+
     /* Action row */
     .action-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
     .webhook-note { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
@@ -228,6 +238,7 @@
 
     @media (max-width: 640px) {
       .disq-grid { grid-template-columns: 1fr; }
+      .info-cards { grid-template-columns: 1fr; }
       .field-grid { grid-template-columns: 1fr 1fr; }
       .score-banner { flex-wrap: wrap; }
       .parse-controls { flex-direction: column; align-items: stretch; }
@@ -365,16 +376,6 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;color:var(--red)"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               <span id="client-blacklist-message"></span>
             </div>
-            <div id="client-winrate-info" style="display:none;margin-top:8px;padding:8px 14px;background:var(--bg-card, transparent);border:1px solid var(--border-color, #ccc);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary, inherit);"></div>
-            <div id="client-payment-panel" style="display:none;margin-top:8px;width:50%;min-width:280px;padding:10px 14px;background:var(--bg-card, transparent);border:1px solid var(--border-color, #ccc);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary, inherit);">
-              <div style="display:flex;align-items:baseline;gap:8px;">
-                <span style="font-weight:600;color:var(--text-primary, inherit);">Payment history</span>
-                <span id="pay-score" style="font-size:20px;font-weight:700;color:var(--text-primary, inherit);"></span>
-                <span id="pay-label" style="font-weight:600;"></span>
-              </div>
-              <div id="pay-lines" style="margin-top:4px;line-height:1.5;"></div>
-              <div id="pay-note" style="margin-top:4px;font-size:11px;color:var(--text-tertiary, inherit);"></div>
-            </div>
           </div>
           <button class="btn btn-green" onclick="parseRFQ()" id="parse-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
@@ -473,6 +474,28 @@
           </span>
         </div>
         <div class="disq-grid" id="disq-grid"></div>
+      </div>
+
+      <!-- PAYMENT + WIN HISTORY (information cards; fill in when a client is picked) -->
+      <div class="info-cards">
+        <div class="card" id="pay-card">
+          <div class="card-header"><span class="card-title">Payment history</span></div>
+          <div class="info-msg" id="pay-msg"></div>
+          <div id="pay-result" style="display:none;">
+            <div class="info-head"><span class="info-big" id="pay-score"></span><span class="info-label" id="pay-label"></span></div>
+            <div class="info-lines" id="pay-lines"></div>
+            <div class="info-note" id="pay-note"></div>
+          </div>
+        </div>
+        <div class="card" id="win-card">
+          <div class="card-header"><span class="card-title">Win history</span></div>
+          <div class="info-msg" id="win-msg"></div>
+          <div id="win-result" style="display:none;">
+            <div class="info-head"><span class="info-big" id="win-big"></span><span class="info-label" id="win-label"></span></div>
+            <div class="info-lines" id="win-lines"></div>
+            <div class="info-note" id="win-note"></div>
+          </div>
+        </div>
       </div>
 
       <div id="scoring-sections"></div>
@@ -1483,10 +1506,10 @@ const BLACKLIST_SEGMENTS = { do_not_pursue: 'Do Not Pursue', do_not_work_with: '
 async function checkClientBlacklist(name) {
   const warning = document.getElementById('client-blacklist-warning');
   const message = document.getElementById('client-blacklist-message');
-  const winInfo = document.getElementById('client-winrate-info');
   warning.style.display = 'none';
-  winInfo.style.display = 'none';
+  setCard('win', 'idle');
   if (!name) return;
+  setCard('win', 'msg', 'Looking up CRM bid history\u2026');
   try {
     const res = await fetch(`${CRM_LOOKUP_URL}?name=${encodeURIComponent(name)}`, {
       headers: { 'X-CRM-Service-Key': CRM_SERVICE_KEY }
@@ -1497,24 +1520,40 @@ async function checkClientBlacklist(name) {
       message.textContent = `CRM has this account flagged "${BLACKLIST_SEGMENTS[segment]}" — check with leadership before proceeding.`;
       warning.style.display = 'flex';
     }
-    showClientWinRate(winInfo, data?.found && data.win_stats);
+    showClientWinRate(data?.found && data.win_stats);
   } catch (e) {
     console.error('CRM blacklist check failed (non-blocking):', e);
+    setCard('win', 'msg', 'Could not load CRM bid history right now.');
   }
 }
 
-// Win history with this client, from CRM — information only, it does not
-// change SCOUT's score or block anything (Ben, 2026-10-06). Shown as a plain
-// line under the client; hidden when CRM has no decided bids for them.
-function showClientWinRate(el, stats) {
-  if (!stats || !stats.decided_count) return;
+// Info cards: a permanent description before a client is picked, then the numbers.
+const CARD_IDLE = {
+  pay: "Pick a client above and this card shows how reliably they pay, from NetSuite: average days past each invoice's due date, share paid late, credit memos, and anything overdue now. It also fills in the Payment record question for you.",
+  win: "Pick a client above and this card shows our bid history with them, from CRM: bids won out of bids decided, compared with our overall win rate. Information only - it does not change the score."
+};
+function setCard(which, mode, text) {
+  const msg = document.getElementById(which + '-msg'), res = document.getElementById(which + '-result');
+  if (!msg || !res) return;
+  if (mode === 'result') { msg.style.display = 'none'; res.style.display = 'block'; return; }
+  res.style.display = 'none'; msg.style.display = 'block';
+  msg.textContent = mode === 'idle' ? CARD_IDLE[which] : text;
+}
+
+// Win history with this client, from CRM - information only, it does not
+// change SCOUT's score or block anything (Ben, 2026-10-06).
+function showClientWinRate(stats) {
+  if (!stats || !stats.decided_count) { setCard('win', 'msg', 'No decided bids with this client in CRM yet.'); return; }
   const pct = Math.round(stats.win_rate * 100);
   const avg = stats.overall_win_rate != null ? Math.round(stats.overall_win_rate * 100) : null;
-  const bandText = { over: '▲ above our average', at: '● about our average', under: '▼ below our average' }[stats.band] || '';
-  const small = stats.band ? '' : ' (too few decided bids to compare with our average)';
-  el.textContent = 'CRM win history with this client: ' + stats.won + ' won of ' + stats.decided_count + ' decided (' + pct + '%)' +
-    (avg != null ? ' vs ' + avg + '% overall' : '') + (bandText ? ' — ' + bandText : '') + small + '.';
-  el.style.display = 'block';
+  const bandText = { over: '\u25B2 above our average', at: '\u25CF about our average', under: '\u25BC below our average' }[stats.band] || '';
+  document.getElementById('win-big').textContent = pct + '%';
+  document.getElementById('win-label').textContent = bandText;
+  const lines = document.getElementById('win-lines'); lines.textContent = '';
+  [stats.won + ' won of ' + stats.decided_count + ' decided' + (stats.lost != null ? ' (' + stats.lost + ' lost)' : '') + '.',
+   avg != null ? 'Our overall win rate is ' + avg + '%.' : ''].filter(Boolean).forEach(t => { const d = document.createElement('div'); d.textContent = t; lines.appendChild(d); });
+  document.getElementById('win-note').textContent = stats.band ? 'From CRM. Information only - not part of the score.' : 'Too few decided bids to compare with our average. From CRM; information only.';
+  setCard('win', 'result');
 }
 
 // ---------- payment history (computed in netsuite-worker from NetSuite invoices, payments and credits) ----------
@@ -1534,8 +1573,7 @@ function paymentAnswerFor(r) {
 
 function hidePaymentPanel() {
   paymentLoadSeq++; // drop any lookup still in flight
-  const panel = document.getElementById('client-payment-panel');
-  if (panel) panel.style.display = 'none';
+  setCard('pay', 'idle');
   const sel = document.getElementById('crit-payment_record');
   if (sel && sel.dataset.auto) { sel.value = ''; delete sel.dataset.auto; updateScore(); }
 }
@@ -1566,16 +1604,15 @@ function renderPaymentPanel(r) {
     note += 'Payment record was already set, so it was left as is.';
   }
   document.getElementById('pay-note').textContent = note;
-  document.getElementById('client-payment-panel').style.display = 'block';
+  setCard('pay', 'result');
 }
 
 async function loadClientPayment(nsId) {
   const seq = ++paymentLoadSeq;
-  const panel = document.getElementById('client-payment-panel');
-  if (panel) panel.style.display = 'none';
   const sel = document.getElementById('crit-payment_record');
   if (sel && sel.dataset.auto) { sel.value = ''; delete sel.dataset.auto; updateScore(); }
-  if (!nsId) return;
+  if (!nsId) { setCard('pay', 'msg', "This client isn't linked to a NetSuite customer yet, so there is no payment history to show."); return; }
+  setCard('pay', 'msg', 'Looking up payment history\u2026');
   try {
     const res = await fetch('https://netsuite.ben-a90.workers.dev', {
       method: 'POST',
@@ -1588,6 +1625,7 @@ async function loadClientPayment(nsId) {
     renderPaymentPanel(data.result);
   } catch (e) {
     console.error('Payment history lookup failed (non-blocking):', e);
+    if (seq === paymentLoadSeq) setCard('pay', 'msg', 'Could not load payment history right now.');
   }
 }
 
@@ -1943,6 +1981,7 @@ function toggleDisq(i){
 }
 
 function buildScoringSection(){
+  setCard('pay','idle'); setCard('win','idle');
   const container=document.getElementById('scoring-sections');
   [1,2,3,4].forEach(sec=>{
     const criteria=CRITERIA.filter(c=>c.section===sec);
@@ -2646,7 +2685,7 @@ function clearForm(){
   existingClientContacts=[];
   document.getElementById('existing-contacts-info').textContent='';
   document.getElementById('client-blacklist-warning').style.display='none';
-  const winInfoEl=document.getElementById('client-winrate-info'); if(winInfoEl) winInfoEl.style.display='none';
+  setCard('win','idle');
   hidePaymentPanel();
   document.getElementById('add-contact-action').style.display='none';
   document.getElementById('procore-contact-sync-status').style.display='none';
