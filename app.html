@@ -1503,7 +1503,7 @@ function filterClients(val) {
 // a lookup failure or unmatched company just means no warning shows, it
 // never prevents qualifying or submitting an RFQ.
 const BLACKLIST_SEGMENTS = { do_not_pursue: 'Do Not Pursue', do_not_work_with: 'Do Not Work With' };
-async function checkClientBlacklist(name) {
+async function checkClientBlacklist(name, nsId) {
   const warning = document.getElementById('client-blacklist-warning');
   const message = document.getElementById('client-blacklist-message');
   warning.style.display = 'none';
@@ -1511,7 +1511,8 @@ async function checkClientBlacklist(name) {
   if (!name) return;
   setCard('win', 'msg', 'Looking up CRM bid history\u2026');
   try {
-    const res = await fetch(`${CRM_LOOKUP_URL}?name=${encodeURIComponent(name)}`, {
+    // ns_id lets CRM match on the NetSuite customer id first (name alone still works).
+    const res = await fetch(`${CRM_LOOKUP_URL}?name=${encodeURIComponent(name)}${nsId ? '&ns_id=' + encodeURIComponent(nsId) : ''}`, {
       headers: { 'X-CRM-Service-Key': CRM_SERVICE_KEY }
     });
     const data = await res.json();
@@ -1636,7 +1637,7 @@ function selectClient(name, nsId, procoreId) {
   document.getElementById('f-client').value = name;
   closeDropdown();
   loadExistingContacts(selectedClientNSID);
-  checkClientBlacklist(name);
+  checkClientBlacklist(name, selectedClientNSID);
   loadClientPayment(selectedClientNSID);
 
   // Fetch Procore company ID from NetSuite if not already populated. This is
