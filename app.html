@@ -2204,7 +2204,15 @@ function pushToCRM(payload, { qualificationResult, noBidReason, procoreBidId, ns
     bid_due_date: payload.bid_due_date || null,
     // For CRM's SCOUT stats tab. Only the override path carries a reason and an
     // approver; disqualifiers[] is sent on every push (empty when none fired).
-    disqualifiers: Array.isArray(payload.disqualifiers) ? payload.disqualifiers.slice(0, 50) : []
+    disqualifiers: Array.isArray(payload.disqualifiers) ? payload.disqualifiers.slice(0, 50) : [],
+    // The complete record SCOUT just built (the same object that goes to Excel and
+    // NetSuite), kept verbatim by CRM as one permanent row per push, plus the
+    // thresholds in force so history survives future tier changes.
+    scout_record: payload,
+    scout_outcome: qualificationResult === 'no_bid' ? 'declined' : 'submitted',
+    ns_opportunity_id: nsOpportunityId || null,
+    procore_bid_id: procoreBidId || null,
+    scout_thresholds: { A: TIER_A_MIN, B: TIER_B_MIN, C: TIER_C_MIN }
   };
   if (qualificationResult === 'leadership_override') {
     body.override_reason = payload.override || '';
