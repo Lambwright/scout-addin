@@ -1531,7 +1531,7 @@ async function checkClientBlacklist(name, nsId) {
 // Info cards: a permanent description before a client is picked, then the numbers.
 const CARD_IDLE = {
   pay: "Pick a client above and this card shows how reliably they pay, from NetSuite: average days past each invoice's due date, share paid late, credit memos, and anything overdue now. It also fills in the Payment record question for you.",
-  win: "Pick a client above and this card shows our bid history with them, from CRM: bids won out of bids decided, compared with our overall win rate. Information only - it does not change the score."
+  win: "Pick a client above and this card shows our bid history with them, from CRM: our DECIDED win rate (bids won out of bids that were won or lost; open bids are not counted), compared with our overall decided win rate. Information only - it does not change the score."
 };
 function setCard(which, mode, text) {
   const msg = document.getElementById(which + '-msg'), res = document.getElementById(which + '-result');
@@ -1549,11 +1549,11 @@ function showClientWinRate(stats) {
   const avg = stats.overall_win_rate != null ? Math.round(stats.overall_win_rate * 100) : null;
   const bandText = { over: '\u25B2 above our average', at: '\u25CF about our average', under: '\u25BC below our average' }[stats.band] || '';
   document.getElementById('win-big').textContent = pct + '%';
-  document.getElementById('win-label').textContent = bandText;
+  document.getElementById('win-label').textContent = 'decided win rate' + (bandText ? ' — ' + bandText : '');
   const lines = document.getElementById('win-lines'); lines.textContent = '';
-  [stats.won + ' won of ' + stats.decided_count + ' decided' + (stats.lost != null ? ' (' + stats.lost + ' lost)' : '') + '.',
-   avg != null ? 'Our overall win rate is ' + avg + '%.' : ''].filter(Boolean).forEach(t => { const d = document.createElement('div'); d.textContent = t; lines.appendChild(d); });
-  document.getElementById('win-note').textContent = stats.band ? 'From CRM. Information only - not part of the score.' : 'Too few decided bids to compare with our average. From CRM; information only.';
+  [stats.won + ' won of ' + stats.decided_count + ' decided bids' + (stats.lost != null ? ' (' + stats.lost + ' lost)' : '') + '.',
+   avg != null ? 'Our overall decided win rate is ' + avg + '%.' : ''].filter(Boolean).forEach(t => { const d = document.createElement('div'); d.textContent = t; lines.appendChild(d); });
+  document.getElementById('win-note').textContent = 'Decided = bids with a final outcome (won or lost), all time, from CRM. Bids still open are not counted, so this is not the whole-pipeline rate. ' + (stats.band ? '' : 'Too few decided bids to compare with our average. ') + 'Information only - not part of the score.';
   setCard('win', 'result');
 }
 
