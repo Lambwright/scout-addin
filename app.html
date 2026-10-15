@@ -366,6 +366,15 @@
               <span id="client-blacklist-message"></span>
             </div>
             <div id="client-winrate-info" style="display:none;margin-top:8px;padding:8px 14px;background:var(--bg-card, transparent);border:1px solid var(--border-color, #ccc);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary, inherit);"></div>
+            <div id="client-payment-panel" style="display:none;margin-top:8px;width:50%;min-width:280px;padding:10px 14px;background:var(--bg-card, transparent);border:1px solid var(--border-color, #ccc);border-radius:var(--radius-sm);font-size:12px;color:var(--text-secondary, inherit);">
+              <div style="display:flex;align-items:baseline;gap:8px;">
+                <span style="font-weight:600;color:var(--text-primary, inherit);">Payment history</span>
+                <span id="pay-score" style="font-size:20px;font-weight:700;color:var(--text-primary, inherit);"></span>
+                <span id="pay-label" style="font-weight:600;"></span>
+              </div>
+              <div id="pay-lines" style="margin-top:4px;line-height:1.5;"></div>
+              <div id="pay-note" style="margin-top:4px;font-size:11px;color:var(--text-tertiary, inherit);"></div>
+            </div>
           </div>
           <button class="btn btn-green" onclick="parseRFQ()" id="parse-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
@@ -1159,7 +1168,7 @@ SCORING RESTRAINT — CRITICAL:
 - Only update scoring fields when there is clear, specific evidence in the email or conversation to support that score.
 - Do NOT assume a strong client relationship, past project history, or high win potential unless the email explicitly states it or the estimator confirms it.
 - Do NOT infer that Einbau has worked at a specific location before based on the location alone — a project at Yorkdale does not mean Einbau has a relationship with that client or has worked there before.
-- Payment record and win potential scores should be left unset until the estimator provides specific information about this client's history. Do not guess.
+- Payment record is filled in automatically from NetSuite payment history when the client is picked — never set crit-payment_record yourself. Win potential should be left unset until the estimator provides specific information about this client's history. Do not guess.
 - When in doubt on a scoring field, ask the estimator rather than filling it in with an assumption.
 RESPONSE STYLE: Write in plain, concise prose. Avoid markdown tables, excessive headers, and heavy bullet formatting. Use short paragraphs. Get to the point. Estimators are busy — every extra word costs their time and our API budget. Bullets are fine for short lists but don't over-format simple points.
 Start with a brief summary of what you found, what fields are missing, and any scoring suggestions based on the above context.
@@ -1508,6 +1517,80 @@ function showClientWinRate(el, stats) {
   el.style.display = 'block';
 }
 
+// ---------- payment history (computed in netsuite-worker from NetSuite invoices, payments and credits) ----------
+// Information plus an automatic answer for the "Payment record" question — no
+// Claude involved. Bands: payment score 7-10 GOOD, 4-6 AVERAGE, 0-3 POOR;
+// "Limited history"/"No history" means too few judged invoices, so New client /
+// Unknown. The estimator can still change the dropdown; we only fill it when
+// it is empty or still holds our own earlier automatic value.
+let paymentLoadSeq = 0;
+
+function paymentAnswerFor(r) {
+  if (!r || r.status !== 'Scored' || r.score == null) return { score: '3', label: 'New client / Unknown' };
+  if (r.score >= 7) return { score: '10', label: 'GOOD' };
+  if (r.score >= 4) return { score: '5', label: 'AVERAGE' };
+  return { score: '1', label: 'POOR' };
+}
+
+function hidePaymentPanel() {
+  paymentLoadSeq++; // drop any lookup still in flight
+  const panel = document.getElementById('client-payment-panel');
+  if (panel) panel.style.display = 'none';
+  const sel = document.getElementById('crit-payment_record');
+  if (sel && sel.dataset.auto) { sel.value = ''; delete sel.dataset.auto; updateScore(); }
+}
+
+function renderPaymentPanel(r) {
+  const ans = paymentAnswerFor(r);
+  const scored = r.status === 'Scored' && r.score != null;
+  document.getElementById('pay-score').textContent = scored ? r.score + '/10' : '—';
+  document.getElementById('pay-label').textContent = scored ? ans.label : (r.status || 'No history');
+  const lines = [];
+  if (scored) {
+    lines.push('Pays on average ' + (r.avg_days_past_terms_18m <= 0 ? 'on or before the due date' : r.avg_days_past_terms_18m + ' days past terms') + ' (last 18 months)' +
+      (r.avg_days_past_terms_6m != null ? ', ' + r.avg_days_past_terms_6m + ' days (last 6 months)' : '') + '.');
+    lines.push(r.late_pct + '% of ' + r.judged_invoices + ' invoices paid late. Credit memos: ' + r.credit_pct + '% of billings.');
+    if (r.overdue_days > 0) lines.push('Currently has an invoice ' + r.overdue_days + ' days past due.');
+  } else {
+    lines.push(r.judged_invoices ? 'Only ' + r.judged_invoices + ' invoice(s) to judge so far — not enough to score.' : 'No judged invoice history in NetSuite yet.');
+  }
+  const box = document.getElementById('pay-lines');
+  box.textContent = '';
+  lines.forEach(t => { const d = document.createElement('div'); d.textContent = t; box.appendChild(d); });
+  const sel = document.getElementById('crit-payment_record');
+  let note = 'Days are counted past each invoice\'s own due date, from NetSuite. ';
+  if (sel && (sel.value === '' || sel.dataset.auto)) {
+    sel.value = ans.score; sel.dataset.auto = '1'; updateScore();
+    note += 'Payment record filled in automatically — you can change it.';
+  } else {
+    note += 'Payment record was already set, so it was left as is.';
+  }
+  document.getElementById('pay-note').textContent = note;
+  document.getElementById('client-payment-panel').style.display = 'block';
+}
+
+async function loadClientPayment(nsId) {
+  const seq = ++paymentLoadSeq;
+  const panel = document.getElementById('client-payment-panel');
+  if (panel) panel.style.display = 'none';
+  const sel = document.getElementById('crit-payment_record');
+  if (sel && sel.dataset.auto) { sel.value = ''; delete sel.dataset.auto; updateScore(); }
+  if (!nsId) return;
+  try {
+    const res = await fetch('https://netsuite.ben-a90.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
+      body: JSON.stringify({ action: 'payscore', customer_id: nsId })
+    });
+    const data = await res.json();
+    if (seq !== paymentLoadSeq) return; // a different client was picked meanwhile
+    if (!data || !data.ok || !data.result) throw new Error((data && (data.message || data.error)) || ('HTTP ' + res.status));
+    renderPaymentPanel(data.result);
+  } catch (e) {
+    console.error('Payment history lookup failed (non-blocking):', e);
+  }
+}
+
 function selectClient(name, nsId, procoreId) {
   selectedClient = name;
   selectedClientNSID = nsId || '';
@@ -1516,6 +1599,7 @@ function selectClient(name, nsId, procoreId) {
   closeDropdown();
   loadExistingContacts(selectedClientNSID);
   checkClientBlacklist(name);
+  loadClientPayment(selectedClientNSID);
 
   // Fetch Procore company ID from NetSuite if not already populated. This is
   // NOT a field on the customer record itself - it lives in a separate custom
@@ -1871,7 +1955,7 @@ function buildScoringSection(){
         ${criteria.map(c=>`
           <div class="field">
             <label>${c.label} <span style="color:var(--text-tertiary);font-weight:400">(w:${c.weight})</span></label>
-            <select id="crit-${c.id}" onchange="updateScore()">
+            <select id="crit-${c.id}" onchange="delete this.dataset.auto;updateScore()">
               <option value="">Select…</option>
               ${c.options.map(o=>`<option value="${o.score}">${o.label}</option>`).join('')}
             </select>
@@ -2548,6 +2632,7 @@ function clearForm(){
   document.getElementById('existing-contacts-info').textContent='';
   document.getElementById('client-blacklist-warning').style.display='none';
   const winInfoEl=document.getElementById('client-winrate-info'); if(winInfoEl) winInfoEl.style.display='none';
+  hidePaymentPanel();
   document.getElementById('add-contact-action').style.display='none';
   document.getElementById('procore-contact-sync-status').style.display='none';
   ['f-role'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
