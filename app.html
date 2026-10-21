@@ -213,7 +213,8 @@
     .priority-banner { margin-top: 8px; padding: 10px 14px; border-radius: var(--radius-sm); background: rgba(249,115,22,0.14); border: 1px solid rgba(249,115,22,0.6); font-size: 12px; color: var(--text-primary); line-height: 1.5; }
     .priority-chip { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: rgba(249,115,22,0.2); border: 1px solid rgba(249,115,22,0.7); color: var(--text-primary); }
     .priority-submit { margin-bottom: 10px; padding: 10px 14px; border-radius: var(--radius-sm); background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.55); font-size: 12px; line-height: 1.5; color: var(--text-primary); }
-    .priority-submit textarea { width: 100%; margin-top: 8px; }
+    .priority-submit textarea { width: 100%; margin-top: 8px; padding: 9px 12px; background: var(--bg-input); border: 1px solid var(--border-input); border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical; }
+    .priority-submit textarea:focus { outline: none; border-color: var(--green); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(143,199,66,0.12); }
     body.priority-client .score-banner { border-color: rgba(249,115,22,0.75); box-shadow: 0 0 0 1px rgba(249,115,22,0.35), var(--shadow-sm); }
     /* No Bid band is not a thing for a priority client: it takes Tier C's colour */
     body.priority-client .ruler-zone.no-bid { background: #dbeafe; }
@@ -438,7 +439,7 @@
         <div class="section-scores-display" id="section-scores">—</div>
       </div>
 
-      <div class="toggle-row">
+      <div class="toggle-row" id="push-toggle-row">
         <input type="checkbox" class="toggle" id="push-to-bid" onchange="updateScore()">
         <label class="toggle-label" for="push-to-bid">Push to bid board</label>
         <span class="toggle-hint">Auto-checked at Tier A or B — override manually</span>
@@ -1545,6 +1546,17 @@ let crmLookupSeq = 0;
 let blacklistLocked = false;
 const blacklistDisqIndex = () => DISQUALIFIERS.findIndex(d => /blacklisted/i.test(d));
 
+// Re-asserts the Blacklisted tick and lock. Runs on every score update and after
+// Parse, so nothing that re-renders or resets the form can leave it unticked.
+function enforceBlacklistLock() {
+  if (!clientFlags.blacklisted) return;
+  const bi = blacklistDisqIndex();
+  const cb = bi >= 0 ? document.getElementById('disq-' + bi) : null;
+  if (!cb) return;
+  cb.checked = true; cb.disabled = true; blacklistLocked = true;
+  const wrap = document.getElementById('disq-wrap-' + bi); if (wrap) wrap.classList.add('locked');
+}
+
 function applyClientFlags(f) {
   clientFlags = Object.assign({ priority: false, priorityReason: '', priorityPermanent: false, blacklisted: false, blacklistReason: '' }, f || {});
   if (clientFlags.blacklisted) clientFlags.priority = false;
@@ -1562,6 +1574,9 @@ function applyClientFlags(f) {
   set('priority-strip', p ? 'flex' : 'none');
   set('priority-chip', p ? 'inline-flex' : 'none');
   set('priority-submit', p ? 'block' : 'none');
+  // A priority client always goes to the bid board, so the checkbox is hidden and forced on.
+  set('push-toggle-row', p ? 'none' : 'flex');
+  if (!p) { const pb = document.getElementById('push-to-bid'); if (pb) pb.dataset.touched = ''; }
   const t1 = document.getElementById('client-priority-text'), t2 = document.getElementById('priority-strip-text');
   if (t1) t1.textContent = text ? text : '\u2014 proceed with the estimate regardless of the RFQ score.';
   if (t2) t2.textContent = (document.getElementById('f-client').value ? ' ' + document.getElementById('f-client').value : '') + ' \u2014 proceed with the estimate regardless of the score.';
@@ -2140,6 +2155,7 @@ function checkSubmitGate(){
 }
 
 function updateScore(){
+  enforceBlacklistLock();
   const disqTriggered=DISQUALIFIERS.some((_,i)=>document.getElementById('disq-'+i)?.checked);
   DISQUALIFIERS.forEach((_,i)=>{
     const wrap=document.getElementById('disq-wrap-'+i);
@@ -2186,6 +2202,7 @@ function updateScore(){
     if(totalScaled>=TIER_A_MIN){tier='Tier A';cls='tier-a';rec='High priority — submit bid. Assign estimator and flag for leadership.';}
     else if(totalScaled>=TIER_B_MIN){tier='Tier B';cls='tier-b';rec='Medium priority — qualify further before committing estimating resources.';}
     else if(totalScaled>=TIER_C_MIN){tier='Tier C';cls='tier-c';rec='Low priority — monitor only. Do not assign estimating without leadership review.';}
+    else if(clientFlags.priority&&totalScaled===0){tier='No score yet';cls='tier-no';rec='Priority client \u2014 proceed with the estimate regardless of score. Fill in the scoring criteria below.';}
     else if(clientFlags.priority){tier='Tier C';cls='tier-c';rec='Priority client \u2014 proceed with the estimate regardless of score. Scored '+totalScaled+', below the Tier C floor of '+TIER_C_MIN+'; the real score is still recorded.';}
     else{tier='No bid';cls='tier-no';rec='No bid — decline or defer. Do not assign estimating resources.';}
     tierEl.className='tier-badge '+cls;
@@ -2195,6 +2212,7 @@ function updateScore(){
     const pushCb=document.getElementById('push-to-bid');
     if(!pushCb.dataset.touched) pushCb.checked=autoPush;
   }
+  if(clientFlags.priority) document.getElementById('push-to-bid').checked=true;
   document.getElementById('section-scores').innerHTML=sectionScores.map((s,i)=>`S${i+1}: <strong>${s}</strong>`).join('<br>');
   checkSubmitGate();
 }
@@ -2259,6 +2277,7 @@ async function parseRFQ(){
     if(data.bid_received_date) document.getElementById('f-date').value=data.bid_received_date;
     if(data.bid_due_date) document.getElementById('f-bid-due-date').value=data.bid_due_date;
     status.textContent='✓ Parsed — review and adjust before submitting.';
+    updateScore(); // also re-asserts the CRM blacklist lock
 
   if(data.bid_due_date) checkPipelineConflict(data.bid_due_date);
 
@@ -2298,13 +2317,20 @@ function exportSnippets() {
 }
 
 
+// Who is signed in: sent on every push so CRM can say who declined or submitted
+// even when the person isn't in the estimator dropdown.
+function currentSubmitter() {
+  return (scoutCurrentUser && (scoutCurrentUser.displayName || scoutCurrentUser.username)) || '';
+}
+
 // currentRfqRef (minted by initRfqRef() at page load, see below) is the real
 // identifier now — it exists before submission, unlike anything Procore or
 // NetSuite hand back. The old derived-key fallback (Procore Bid ID -> NetSuite
 // Opportunity ID -> a locally-generated key) only kicks in if minting itself
 // failed (e.g. crm-worker was briefly unreachable at page load), so the CRM
 // push still never silently drops an RFQ just because that one call hiccuped.
-function pushToCRM(payload, { qualificationResult, noBidReason, procoreBidId, nsOpportunityId }) {
+function pushToCRM(payload, { record, qualificationResult, noBidReason, procoreBidId, nsOpportunityId }) {
+  const rec = record || payload; // what CRM records: the honest scored values
   const rfqRef = currentRfqRef
     || (procoreBidId ? `PROCORE-${procoreBidId}` : nsOpportunityId ? `NS-${nsOpportunityId}` : `SCOUT-${Date.now()}`);
   sessionStorage.removeItem('scout_rfq_ref'); // this RFQ is finalized — next one (via clearForm) mints fresh
@@ -2318,8 +2344,8 @@ function pushToCRM(payload, { qualificationResult, noBidReason, procoreBidId, ns
       email: payload.email, phone: payload.phone
     },
     qualification_result: qualificationResult,
-    scout_score: payload.total_score,
-    scout_tier: payload.tier,
+    scout_score: rec.total_score,
+    scout_tier: rec.tier,
     no_bid_reason: noBidReason || null,
     bid_due_date: payload.bid_due_date || null,
     // For CRM's SCOUT stats tab. Only the override path carries a reason and an
@@ -2328,12 +2354,13 @@ function pushToCRM(payload, { qualificationResult, noBidReason, procoreBidId, ns
     // The complete record SCOUT just built (the same object that goes to Excel and
     // NetSuite), kept verbatim by CRM as one permanent row per push, plus the
     // thresholds in force so history survives future tier changes.
-    scout_record: payload,
+    scout_record: rec,
     scout_outcome: qualificationResult === 'no_bid' ? 'declined' : 'submitted',
     ns_opportunity_id: nsOpportunityId || null,
     procore_bid_id: procoreBidId || null,
     scout_thresholds: { A: TIER_A_MIN, B: TIER_B_MIN, C: TIER_C_MIN },
-    priority_client: payload.priority_client === true
+    priority_client: rec.priority_client === true,
+    submitted_by: rec.submitted_by || ''
   };
   if (qualificationResult === 'leadership_override') {
     body.override_reason = payload.override || '';
@@ -2383,7 +2410,7 @@ async function submitRFQ(){
   const client=document.getElementById('f-client').value.trim();
   if(!client){alert('Client name is required.');return;}
   if(!validateClientSelected(client)){return;}
-  if(!validateEstimatorForProcore(document.getElementById('push-to-bid')?.checked)){return;}
+  if(!validateEstimatorForProcore(clientFlags.priority||document.getElementById('push-to-bid')?.checked)){return;}
   const btn=document.getElementById('submit-btn');
   const status=document.getElementById('submit-status');
   btn.disabled=true;
@@ -2421,15 +2448,22 @@ async function submitRFQ(){
     bid_due_date:document.getElementById('f-bid-due-date').value,
     disqualifiers:disqTriggered,scoring:scoringValues,scoring_labels:scoringLabels,
     section_scores:sectionScores,total_score:total,tier,
-    push_to_bid:document.getElementById('push-to-bid').checked,
+    push_to_bid:clientFlags.priority||document.getElementById('push-to-bid').checked,
     status:'Active',
     notes:document.getElementById('f-notes').value,risks:document.getElementById('f-risks').value,
     override:document.getElementById('f-override').value,approver:document.getElementById('f-approver').value,
     submitted_at:new Date().toISOString(),
+    submitted_by:currentSubmitter(),
     ns_customer_id:selectedClientNSID,
     procore_company_id:selectedClientProcoreID,
     copilot_summary:await getCopilotSummary()
   };
+  // CRM gets the honest record (real scored tier, nothing in the override fields).
+  // For a priority client whose score is below the floor, Excel/NetSuite/Procore
+  // instead see a proceeding RFQ: Tier C, Override = "Priority client".
+  const crmRecord=Object.assign({},payload);
+  const priorityProceeds=payload.priority_client===true&&tier==='No bid'&&disqTriggered.length===0;
+  if(priorityProceeds){payload.tier='C';payload.override='Priority client';payload.approver='';}
   window._lastSubmitPayload = payload;
   const destPanel = document.getElementById('dest-status');
   destPanel.style.display = 'flex';
@@ -2495,9 +2529,9 @@ const nsId = window._lastNSOpportunityId;
   // A priority client's sub-58 score proceeds as 'pursue' (no override); the real
   // tier is still sent so CRM can list what would have failed. An automatic
   // disqualifier still counts as an override.
-  const priorityProceeds = payload.priority_client === true && payload.tier === 'No bid' && (payload.disqualifiers || []).length === 0;
   pushToCRM(payload, {
-    qualificationResult: payload.tier === 'No bid' && !priorityProceeds ? 'leadership_override' : 'pursue',
+    record: crmRecord,
+    qualificationResult: crmRecord.tier === 'No bid' && !priorityProceeds ? 'leadership_override' : 'pursue',
     procoreBidId: procoreId,
     nsOpportunityId: nsId
   });
@@ -2540,7 +2574,8 @@ async function declineRFQ(){
     document.getElementById('f-decline-reason')?.focus();
     return;
   }
-  if(!validateEstimatorForProcore(document.getElementById('push-to-bid')?.checked)){return;}
+  // (a decline never pushes to Procore, so a priority client's forced checkbox must not block it)
+  if(!validateEstimatorForProcore(!clientFlags.priority&&document.getElementById('push-to-bid')?.checked)){return;}
   const btn=document.getElementById('decline-btn');
   const status=document.getElementById('submit-status');
   btn.disabled=true;
@@ -2566,6 +2601,7 @@ async function declineRFQ(){
 
   const payload={
     priority_client:clientFlags.priority,
+    submitted_by:currentSubmitter(),
     decline_reason:document.getElementById('f-decline-reason')?.value.trim()||'',
     client,fname:document.getElementById('f-fname').value,lname:document.getElementById('f-lname').value,
     role:document.getElementById('f-role').value,phone:document.getElementById('f-phone').value,
