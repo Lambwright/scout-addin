@@ -1992,7 +1992,7 @@ function validateClientSelected(typedClient) {
 // Only matters when actually pushing to Procore - scoring/Copilot work fine either way.
 function validateEstimatorForProcore(pushToBid) {
   if (pushToBid && !currentEstimatorProcoreId()) {
-    alert(`Your account (${scoutCurrentUser?.displayName || 'this login'}) isn't linked to a Procore estimator, so this can't be pushed to the bid board. Ask Ben to add you if you should be.`);
+    alert(`Your account (${scoutCurrentUser?.displayName || 'this login'}) isn't linked to a Procore estimator, so this can't be pushed to the bid board. Ask an admin to link your account if you should be.`);
     return false;
   }
   return true;
