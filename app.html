@@ -458,14 +458,14 @@
         <div class="card-header"><span class="card-title">Project info</span></div>
         <div class="field-grid">
           <div class="field"><label>Estimator</label>
-            <!-- Only Warren and Alfonso are real estimators - defaults to whichever one is
-                 logged in, but either can pick the other (Warren filing on Alfonso's behalf,
-                 etc). Anyone else who ends up on this form gets it locked, sends null. -->
+            <!-- Options come from HELM (people with the SCOUT "estimator" tool permission
+                 and a linked Procore user), filled in by rebuildEstimatorPicker(). Defaults to
+                 the logged-in person if they are an estimator; any estimator can pick another.
+                 Anyone else gets the field locked and sends a null estimator. -->
             <select id="f-estimator" onchange="onEstimatorChange()">
               <option value="">— Locked —</option>
-              <option value="warren@einbau.ca">Warren</option>
-              <option value="alfonso@einbau.ca">Alfonso</option>
             </select>
+            <div id="estimator-note" style="display:none;margin-top:4px;font-size:11px;color:var(--text-tertiary);"></div>
           </div>
           <div class="field"><label>Bid received date</label><input type="date" id="f-date"></div>
           <div class="field"><label>Bid due date</label><input type="date" id="f-bid-due-date" onchange="checkPipelineConflict(this.value)"></div>
@@ -650,10 +650,15 @@ const CRM_MINT_URL = 'https://crm-worker.ben-a90.workers.dev/rfq-ids/mint';
 const CRM_LOOKUP_URL = 'https://crm-worker.ben-a90.workers.dev/companies/lookup';
 const CRM_SERVICE_KEY = '9bcd4d09a9bb161359842e0b8e608653e3bd361f7378996f';
 
-// Only Warren and Alfonso are real estimators - everyone else (Ben, Josh, Mary
-// Lu, CRM) gets the field locked and sends a null estimator, even though some
-// of them do have real Procore accounts. Peter has one too (1215888) but no
-// Einbau ID login yet - not added to the dropdown until he's an active estimator.
+// Estimators come from HELM: people holding the SCOUT "estimator" tool permission
+// who are linked to a Procore user (auth-worker POST /auth/app/users). Anyone else
+// (admins, CRM, ...) gets the field locked and sends a null estimator.
+//
+// TRANSITIONAL: until HELM is confirmed to hold the permission and Procore links,
+// the hardcoded lists below are used whenever HELM returns no usable estimators.
+// Delete ESTIMATOR_FALLBACK (and these two maps) once that is confirmed - then an
+// empty roster means an empty picker and a "no estimators set up" note.
+const ESTIMATOR_FALLBACK = true;
 const ESTIMATOR_PROCORE_IDS = {
   'warren@einbau.ca': '3960584',
   'alfonso@einbau.ca': '9130897',
@@ -662,17 +667,30 @@ const ESTIMATOR_DISPLAY_NAMES = {
   'warren@einbau.ca': 'Warren',
   'alfonso@einbau.ca': 'Alfonso',
 };
-// Tracked separately from login - Warren and Alfonso can each pick the other,
-// so "who's submitting this" isn't always "who's logged in".
+let estimatorRoster = null; // [{ username, name, procoreId }] once HELM answered with estimators
+function estimatorList() {
+  if (estimatorRoster && estimatorRoster.length) return estimatorRoster;
+  if (!ESTIMATOR_FALLBACK) return [];
+  return Object.keys(ESTIMATOR_PROCORE_IDS).map(u => ({ username: u, name: ESTIMATOR_DISPLAY_NAMES[u] || u, procoreId: ESTIMATOR_PROCORE_IDS[u] }));
+}
+// Excel's estimator column has always held the first name ("Warren"), not the full HELM display name.
+const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
+// Tracked separately from login - estimators can pick each other, so
+// "who's submitting this" isn't always "who's logged in".
 let selectedEstimatorUsername = null;
 function onEstimatorChange() {
   selectedEstimatorUsername = document.getElementById('f-estimator').value || null;
 }
+function currentEstimator() {
+  return selectedEstimatorUsername ? estimatorList().find(e => e.username === selectedEstimatorUsername) || null : null;
+}
 function currentEstimatorProcoreId() {
-  return (selectedEstimatorUsername && ESTIMATOR_PROCORE_IDS[selectedEstimatorUsername]) || '';
+  const e = currentEstimator();
+  return e ? String(e.procoreId) : '';
 }
 function currentEstimatorDisplayName() {
-  return (selectedEstimatorUsername && ESTIMATOR_DISPLAY_NAMES[selectedEstimatorUsername]) || '';
+  const e = currentEstimator();
+  return e ? firstName(e.name) : '';
 }
 
 // ---------- Einbau ID (shared login) ----------
@@ -1982,7 +2000,7 @@ function validateClientSelected(typedClient) {
 
 // Estimator now comes from login, not a dropdown - most accounts (all real
 // estimators, plus Ben) map to a Procore id, but a login like crm@einbau.ca
-// genuinely has no Procore account behind it (by design, see ESTIMATOR_PROCORE_IDS).
+// genuinely has no Procore account behind it (by design: only HELM estimators with a linked Procore user can be assigned).
 // Only matters when actually pushing to Procore - scoring/Copilot work fine either way.
 function validateEstimatorForProcore(pushToBid) {
   if (pushToBid && !currentEstimatorProcoreId()) {
@@ -2897,20 +2915,52 @@ function initScoutApp(){
   updateScore();
   setTimeout(loadClients, 300);
   initEstimatorField();
+  loadEstimatorRoster(); // HELM list; the fallback list covers the moment before it answers
 }
 
-// Was: pre-select a name in the dropdown from a URL parameter each estimator
-// bookmarked (app.html?estimator=Sunita). Now defaults to whoever's logged in
-// if they're Warren or Alfonso (either can still switch to the other), and
-// locks the field entirely - sending a null estimator - for anyone else.
-function initEstimatorField(){
-  const sel = document.getElementById('f-estimator');
-  if (sel) {
-    const isRealEstimator = ESTIMATOR_PROCORE_IDS.hasOwnProperty(scoutCurrentUser?.username);
-    selectedEstimatorUsername = isRealEstimator ? scoutCurrentUser.username : null;
-    sel.value = selectedEstimatorUsername || '';
-    sel.disabled = !isRealEstimator;
+// Asks HELM who the estimators are. Never blocks the form: any failure (or no usable
+// rows) leaves the transitional fallback list in place. Rows look like
+// { username, displayName, procoreUser: { id, name } | null, extras: [ids], ... }.
+async function loadEstimatorRoster() {
+  try {
+    const res = await fetch(`${AUTH_URL}/auth/app/users`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
+      body: JSON.stringify({ app: 'SCOUT' })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const rows = Array.isArray(data && data.users) ? data.users : [];
+    estimatorRoster = rows
+      .filter(u => Array.isArray(u.extras) && u.extras.includes('estimator') && u.procoreUser && u.procoreUser.id)
+      .map(u => ({ username: String(u.username || ''), name: u.displayName || u.procoreUser.name || u.username, procoreId: String(u.procoreUser.id) }))
+      .filter(e => e.username);
+  } catch (e) {
+    console.warn('Estimator list from HELM unavailable (using fallback):', e.message || e);
+    estimatorRoster = null;
   }
+  rebuildEstimatorPicker(true);
+}
+
+// Fills the picker from the current list and picks the default: the logged-in
+// person if they are an estimator (keeping a pick already made this session).
+function rebuildEstimatorPicker(keepSelection) {
+  const sel = document.getElementById('f-estimator'), note = document.getElementById('estimator-note');
+  if (!sel) return;
+  const list = estimatorList();
+  sel.innerHTML = '<option value="">— Locked —</option>';
+  list.forEach(e => { const o = document.createElement('option'); o.value = e.username; o.textContent = firstName(e.name) || e.username; sel.appendChild(o); });
+  const me = list.some(e => e.username === scoutCurrentUser?.username);
+  const keep = keepSelection && selectedEstimatorUsername && list.some(e => e.username === selectedEstimatorUsername);
+  selectedEstimatorUsername = keep ? selectedEstimatorUsername : (me ? scoutCurrentUser.username : null);
+  sel.value = selectedEstimatorUsername || '';
+  sel.disabled = !me;
+  if (note) { note.style.display = list.length ? 'none' : 'block'; note.textContent = list.length ? '' : 'No estimators are set up yet — ask your admin.'; }
+}
+
+// Defaults to whoever's logged in if they're an estimator (any estimator can
+// switch to another) and locks the field - sending a null estimator - for anyone else.
+function initEstimatorField(){
+  rebuildEstimatorPicker(false);
 }
 </script>
     <div id="help-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
