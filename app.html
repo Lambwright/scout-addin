@@ -1185,9 +1185,6 @@ function activateCopilot(rfqEmail, parsedData) {
   
   copilotHistory = [];
   
-  // Alfonso gets a special greeting
-  const isAlfonso = scoutCurrentUser?.username === 'alfonso@einbau.ca';
-
  const systemContext = `You are SCOUT, an RFQ qualification copilot for Einbau Services Ltd., a custom architectural millwork installation company in Whitby, Ontario.
 The estimating team has just parsed an RFQ email. Here is what was extracted:
 ${JSON.stringify(parsedData, null, 2)}
@@ -1235,11 +1232,8 @@ Available field IDs: f-fname, f-lname, f-phone, f-email, f-enduser, f-projname, 
 For scoring dropdowns use: crit-client_award_status, crit-payment_record, crit-win_potential, crit-relationship_strength, crit-client_type, crit-project_type_match, crit-sector_alignment, crit-geographic_fit, crit-scope_clarity, crit-timeline_realism, crit-rollout_scale, crit-project_value, crit-potential_margin, crit-budget_clarity, crit-installer_saturation, crit-crew_availability, crit-pipeline_conflict, crit-operational_complexity
 ${copilotScoreScaleNote()}
 You can include multiple form_update blocks. Only update fields when you have clear, specific evidence from the email or conversation — never assume or infer.
-You are also available to help the estimator troubleshoot the SCOUT form itself. If they ask why something isn't working, walk them through the following: if the client dropdown is missing companies, suggest hitting the ↻ refresh button; if Parse with Claude isn't working, suggest checking their internet connection or filling the form manually; if submission indicators show red, suggest hitting the Retry button for that destination; if all indicators are stuck, suggest refreshing the page and resubmitting. Remind them that the form works fully without Claude — all records will still be created in Procore, NetSuite, and Excel even if parsing and copilot are unavailable. For adding new clients to the directory, direct them to josh@einbau.ca. For any technical issues with the app itself, direct them to ben@einbau.ca. If an estimator mentions they received an RFQ from a portal like BidConnect or Merx that has limited information, proactively suggest they download any attached documents and upload them to this chat — you can read PDFs, drawings, and images to help fill in scoring gaps that the portal listing didn't include.`;
+You are also available to help the estimator troubleshoot the SCOUT form itself. If they ask why something isn't working, walk them through the following: if the client dropdown is missing companies, suggest hitting the ↻ refresh button; if Parse with Claude isn't working, suggest checking their internet connection or filling the form manually; if submission indicators show red, suggest hitting the Retry button for that destination; if all indicators are stuck, suggest refreshing the page and resubmitting. Remind them that the form works fully without Claude — all records will still be created in Procore, NetSuite, and Excel even if parsing and copilot are unavailable. For any technical issues with the app itself, tell them to contact their admin. If an estimator mentions they received an RFQ from a portal like BidConnect or Merx that has limited information, proactively suggest they download any attached documents and upload them to this chat — you can read PDFs, drawings, and images to help fill in scoring gaps that the portal listing didn't include.`;
   copilotHistory.push({ role: 'user', content: systemContext });
-  if(isAlfonso) {
-    document.getElementById('copilot-input').placeholder = '¡Aliméntame, Alfonso!';
-  }
 
   // The typing-indicator message is what replaceLastCopilotMessage swaps the
   // reply (or the failure notice) into — without it nothing ever displays.
@@ -2917,13 +2911,6 @@ function initEstimatorField(){
     sel.value = selectedEstimatorUsername || '';
     sel.disabled = !isRealEstimator;
   }
-  // Alfonso gets special treatment
-  if(scoutCurrentUser?.username === 'alfonso@einbau.ca'){
-    const icon = document.getElementById('copilot-icon');
-    if(icon){
-      icon.innerHTML = '<img src="https://lambwright.github.io/scout-addin/alfonso.png" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" alt="Alfonso">';
-    }
-  }
 }
 </script>
     <div id="help-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
@@ -2941,7 +2928,7 @@ function initEstimatorField(){
 
       <div>
         <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">Step 1 — Select the client</div>
-        <div>Type the client name in the Client field and select from the dropdown. The client must exist in our NetSuite directory. If they don't appear, click the ↻ refresh button — if some companies are showing but not all, a refresh usually loads the full list. If the client still doesn't appear after refreshing, contact <a href="mailto:josh@einbau.ca" style="color:var(--green);">josh@einbau.ca</a> to have them added.</div>
+        <div>Type the client name in the Client field and select from the dropdown. The client must exist in our NetSuite directory. If they don't appear, click the ↻ refresh button — if some companies are showing but not all, a refresh usually loads the full list.</div>
       </div>
 
       <div>
@@ -2978,11 +2965,11 @@ function initEstimatorField(){
       <div>
         <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;">Something went wrong?</div>
         <ul style="margin:4px 0 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4px;">
-          <li>Client not in dropdown → click ↻ refresh. If still missing, contact <a href="mailto:josh@einbau.ca" style="color:var(--green);">josh@einbau.ca</a> to have them added.</li>
+          <li>Client not in dropdown → click ↻ refresh.</li>
           <li>Red indicator with Retry button → click Retry for that destination</li>
           <li>Parse didn't work → check your internet connection and try again, or fill the form manually</li>
           <li>All three indicators stuck → refresh the page and resubmit</li>
-          <li>Any other issue → contact <a href="mailto:ben@einbau.ca" style="color:var(--green);">ben@einbau.ca</a></li>
+          <li>Any other issue → contact your admin</li>
         </ul>
       </div>
 
