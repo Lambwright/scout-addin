@@ -236,6 +236,27 @@
     }
     @media (prefers-reduced-motion: reduce) { .fire-strip span { animation: none; } }
 
+    /* Details popouts for the history cards (tabs styled like CRM's) */
+    .info-card-head-btn { padding: 2px 10px; font-size: 11px; display: none; }
+    .info-modal { position: fixed; inset: 0; z-index: 10001; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; display: none; }
+    .info-modal-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; max-width: 560px; width: 92%; max-height: 85vh; overflow-y: auto; padding: 26px 28px; position: relative; color: var(--text-primary); }
+    .info-modal-x { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 18px; color: var(--text-tertiary); cursor: pointer; }
+    .info-modal h2 { margin: 0 0 4px 0; font-size: 16px; font-weight: 700; }
+    .info-modal .sub { margin: 0 0 14px 0; font-size: 12px; color: var(--text-tertiary); }
+    .info-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .info-tabgroup { display: inline-flex; border: 1px solid var(--border-color); border-radius: var(--radius-sm); overflow: hidden; }
+    .info-tab { padding: 6px 14px; font-size: 12px; font-weight: 500; background: none; border: none; color: var(--text-tertiary); cursor: pointer; }
+    .info-tab + .info-tab { border-left: 1px solid var(--border-color); }
+    .info-tab.active { color: var(--text-primary); background: var(--bg-input); box-shadow: inset 0 -2px 0 var(--green); }
+    .info-tab:disabled { opacity: 0.45; cursor: not-allowed; }
+    .info-bigrow { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+    .info-bignum { font-size: 30px; font-weight: 700; }
+    .info-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0 12px; }
+    .info-table td { padding: 6px 0; border-bottom: 1px solid var(--border-color); }
+    .info-table td:last-child { text-align: right; font-weight: 600; }
+    .info-help { font-size: 12px; line-height: 1.55; color: var(--text-secondary); }
+    .info-help ul { margin: 6px 0 0 0; padding-left: 18px; }
+
     /* Action row */
     .action-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
     .webhook-note { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
@@ -509,7 +530,7 @@
       <!-- PAYMENT + WIN HISTORY (information cards; fill in when a client is picked) -->
       <div class="info-cards">
         <div class="card" id="pay-card">
-          <div class="card-header"><span class="card-title">Payment history</span></div>
+          <div class="card-header"><span class="card-title">Payment history</span><button type="button" class="btn btn-ghost info-card-head-btn" id="pay-details-btn" onclick="openInfoModal('pay')">Details ↗</button></div>
           <div class="info-msg" id="pay-msg"></div>
           <div id="pay-result" style="display:none;">
             <div class="info-head"><span class="info-big" id="pay-score"></span><span class="info-label" id="pay-label"></span></div>
@@ -518,7 +539,7 @@
           </div>
         </div>
         <div class="card" id="win-card">
-          <div class="card-header"><span class="card-title">Win history</span></div>
+          <div class="card-header"><span class="card-title">Win history</span><button type="button" class="btn btn-ghost info-card-head-btn" id="win-details-btn" onclick="openInfoModal('win')">Details ↗</button></div>
           <div class="info-msg" id="win-msg"></div>
           <div id="win-result" style="display:none;">
             <div class="info-head"><span class="info-big" id="win-big"></span><span class="info-label" id="win-label"></span></div>
@@ -1624,6 +1645,103 @@ async function checkClientBlacklist(name, nsId) {
   }
 }
 
+// Last numbers shown on each card, for the Details popouts.
+let winStatsCache = null, payResultCache = null;
+let winModalMode = 'decided', winModalBasis = 'value';
+
+// ---------- Details popouts ----------
+const fmtMoney = n => '$' + Math.round(n || 0).toLocaleString();
+const fmtPctNum = n => n == null ? '\u2014' : Math.round(n * 100) + '%';
+function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function tabGroup(pairs, current, onPick, disabledKeys) {
+  const g = mk('div', 'info-tabgroup');
+  pairs.forEach(([key, label]) => {
+    const b = mk('button', 'info-tab' + (key === current ? ' active' : ''), label); b.type = 'button';
+    if (disabledKeys && disabledKeys.includes(key)) { b.disabled = true; b.title = 'Not available from CRM yet'; }
+    b.onclick = () => onPick(key); g.appendChild(b);
+  });
+  return g;
+}
+function rowTable(rows) {
+  const t = mk('table', 'info-table');
+  rows.filter(Boolean).forEach(([k, v]) => { const tr = document.createElement('tr'); tr.appendChild(mk('td', null, k)); tr.appendChild(mk('td', null, v)); t.appendChild(tr); });
+  return t;
+}
+function openInfoModal(which) {
+  document.getElementById('info-modal').style.display = 'flex';
+  if (which === 'win') renderWinModal(); else renderPayModal();
+}
+function closeInfoModal() { document.getElementById('info-modal').style.display = 'none'; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeInfoModal(); });
+
+function renderWinModal() {
+  const body = document.getElementById('info-modal-body'); body.textContent = '';
+  const s = winStatsCache; if (!s) { body.appendChild(mk('div', 'info-help', 'No win history to show.')); return; }
+  const p = s.pipeline && typeof s.pipeline === 'object' ? s.pipeline : null;
+  body.appendChild(mk('h2', null, 'Win history'));
+  body.appendChild(mk('p', 'sub', (document.getElementById('f-client').value || '') + ' \u2014 from CRM. Information only; it is not part of the score.'));
+  const tabs = mk('div', 'info-tabs');
+  tabs.appendChild(tabGroup([['pipeline', 'Pipeline'], ['decided', 'Decided']], winModalMode, k => { winModalMode = k; renderWinModal(); }));
+  tabs.appendChild(tabGroup([['count', '# Bids'], ['value', '$ Value']], winModalBasis, k => { winModalBasis = k; renderWinModal(); }));
+  body.appendChild(tabs);
+  const byValue = winModalBasis === 'value';
+  const big = (num, label) => { const r = mk('div', 'info-bigrow'); r.appendChild(mk('span', 'info-bignum', num)); r.appendChild(mk('span', 'info-label', label)); body.appendChild(r); };
+  const help = txt => body.appendChild(mk('div', 'info-help', txt));
+  const bandText = { over: '\u25B2 above our average', at: '\u25CF about our average', under: '\u25BC below our average' }[s.band] || '';
+  if (winModalMode === 'decided') {
+    if (!byValue) {
+      big(fmtPctNum(s.win_rate), 'decided win rate' + (bandText ? ' \u2014 ' + bandText : ''));
+      body.appendChild(rowTable([['Won', String(s.won)], ['Lost', String(s.lost != null ? s.lost : s.decided_count - s.won)], ['Decided bids', String(s.decided_count)], ['Our overall decided win rate', fmtPctNum(s.overall_win_rate)]]));
+      help('Decided = bids with a final outcome (won or lost), all time. Bids still open are not counted.');
+    } else if (typeof s.value_won !== 'number') {
+      help('Dollar figures are not available from CRM yet.');
+    } else {
+      const tot = (s.value_won || 0) + (s.value_lost || 0);
+      big(tot > 0 ? Math.round(100 * s.value_won / tot) + '%' : '\u2014', 'decided win rate by dollars');
+      body.appendChild(rowTable([['Value won', fmtMoney(s.value_won)], ['Value lost', fmtMoney(s.value_lost)],
+        ['Average won bid', s.avg_won_value != null ? fmtMoney(s.avg_won_value) + (s.overall_avg_won_value != null ? '  (all clients ' + fmtMoney(s.overall_avg_won_value) + ')' : '') : '\u2014'],
+        ['Average lost bid', s.avg_lost_value != null ? fmtMoney(s.avg_lost_value) + (s.overall_avg_lost_value != null ? '  (all clients ' + fmtMoney(s.overall_avg_lost_value) + ')' : '') : '\u2014']]));
+      help('Dollars are the bids\u2019 estimated values, decided bids only. ' + (s.valued_won != null ? s.valued_won + ' won and ' + s.valued_lost + ' lost bids carry a value; ' : '') + 'bids with no estimated value are ignored.');
+    }
+  } else if (!p) {
+    help('The pipeline view (won, lost and still-open bids together) is not available from CRM yet.');
+  } else {
+    const won = byValue ? p.won_value : p.won, lost = byValue ? p.lost_value : p.lost, open = byValue ? p.open_value : p.open_count;
+    const tot = (won || 0) + (lost || 0) + (open || 0);
+    const fmt = n => byValue ? fmtMoney(n) : String(n || 0);
+    const overall = byValue ? p.overall_rate_value : p.overall_rate;
+    big(tot > 0 ? Math.round(100 * (won || 0) / tot) + '%' : '\u2014', 'pipeline win rate' + (byValue ? ' by dollars' : ' by bids'));
+    body.appendChild(rowTable([['Won', fmt(won)], ['Lost', fmt(lost)], ['Still open', fmt(open)], ['Our overall pipeline win rate', fmtPctNum(overall)]]));
+    help('Pipeline = won, lost and bids still open, counted together. ' + (byValue ? 'Dollars are estimated values; bids with no estimated value are ignored.' : ''));
+  }
+}
+
+function renderPayModal() {
+  const body = document.getElementById('info-modal-body'); body.textContent = '';
+  const r = payResultCache; if (!r) { body.appendChild(mk('div', 'info-help', 'No payment history to show.')); return; }
+  const ans = paymentAnswerFor(r), scored = r.status === 'Scored' && r.score != null;
+  body.appendChild(mk('h2', null, 'Payment history'));
+  body.appendChild(mk('p', 'sub', (document.getElementById('f-client').value || '') + ' \u2014 calculated from NetSuite invoices, payments and credit memos' + (r.calc_date ? ' on ' + r.calc_date : '') + '.'));
+  const row = mk('div', 'info-bigrow'); row.appendChild(mk('span', 'info-bignum', scored ? r.score + '/10' : '\u2014')); row.appendChild(mk('span', 'info-label', scored ? ans.label : (r.status || 'No history'))); body.appendChild(row);
+  const days = v => v == null ? '\u2014' : (v <= 0 ? 'on or before the due date' : v + ' days past terms');
+  body.appendChild(rowTable([
+    ['Average payment, last 18 months', scored ? days(r.avg_days_past_terms_18m) : '\u2014'],
+    ['Average payment, last 6 months', r.avg_days_past_terms_6m != null ? days(r.avg_days_past_terms_6m) : '\u2014'],
+    ['Invoices judged', String(r.judged_invoices != null ? r.judged_invoices : 0)],
+    ['Paid late', r.late_pct != null ? r.late_pct + '%' : '\u2014'],
+    ['Credit memos, share of billings', r.credit_pct != null ? r.credit_pct + '%' : '\u2014'],
+    ['Credit memos per invoice', r.credit_memos_per_invoice != null ? String(r.credit_memos_per_invoice) : '\u2014'],
+    ['Oldest invoice overdue now', r.overdue_days > 0 ? r.overdue_days + ' days' : 'none']]));
+  const help = mk('div', 'info-help');
+  help.appendChild(mk('div', null, 'How to read this'));
+  const ul = mk('ul');
+  ['Days are counted past each invoice\u2019s own due date (Net 30 for most, Net 15 for T&M), from the date 85% of it was paid. Paying early does not offset a late invoice.',
+   'Score 7\u201310 is GOOD, 4\u20136 is AVERAGE, 0\u20133 is POOR. With fewer than 3 judged invoices there is not enough history, so it shows unknown and the Payment record question stays "New client / Unknown".',
+   'The score is mostly speed (70%) and partly credit memos (30%), blending the last 6 months (40%) with the last 18 months (60%). Credit memos that cancel an invoice completely are ignored; partial credits count against the client.',
+   'It also fills in the Payment record question for you, and you can change that answer.'].forEach(t => ul.appendChild(mk('li', null, t)));
+  help.appendChild(ul); body.appendChild(help);
+}
+
 // Info cards: a permanent description before a client is picked, then the numbers.
 const CARD_IDLE = {
   pay: "Pick a client above and this card shows how reliably they pay, from NetSuite: average days past each invoice's due date, share paid late, credit memos, and anything overdue now. It also fills in the Payment record question for you.",
@@ -1632,6 +1750,9 @@ const CARD_IDLE = {
 function setCard(which, mode, text) {
   const msg = document.getElementById(which + '-msg'), res = document.getElementById(which + '-result');
   if (!msg || !res) return;
+  const detailsBtn = document.getElementById(which + '-details-btn');
+  if (detailsBtn) detailsBtn.style.display = mode === 'result' ? 'inline-flex' : 'none';
+  if (mode !== 'result') { if (which === 'win') winStatsCache = null; else payResultCache = null; }
   if (mode === 'result') { msg.style.display = 'none'; res.style.display = 'block'; return; }
   res.style.display = 'none'; msg.style.display = 'block';
   msg.textContent = mode === 'idle' ? CARD_IDLE[which] : text;
@@ -1649,6 +1770,7 @@ function showClientWinRate(stats) {
   const lines = document.getElementById('win-lines'); lines.textContent = '';
   [stats.won + ' won of ' + stats.decided_count + ' decided bids' + (stats.lost != null ? ' (' + stats.lost + ' lost)' : '') + '.',
    avg != null ? 'Our overall decided win rate is ' + avg + '%.' : ''].filter(Boolean).forEach(t => { const d = document.createElement('div'); d.textContent = t; lines.appendChild(d); });
+  winStatsCache = stats;
   document.getElementById('win-note').textContent = 'Decided = bids with a final outcome (won or lost), all time, from CRM. Bids still open are not counted, so this is not the whole-pipeline rate. ' + (stats.band ? '' : 'Too few decided bids to compare with our average. ') + 'Information only - not part of the score.';
   setCard('win', 'result');
 }
@@ -1701,6 +1823,7 @@ function renderPaymentPanel(r) {
     note += 'Payment record was already set, so it was left as is.';
   }
   document.getElementById('pay-note').textContent = note;
+  payResultCache = r;
   setCard('pay', 'result');
 }
 
@@ -2985,6 +3108,7 @@ function initEstimatorField(){
   rebuildEstimatorPicker(false);
 }
 </script>
+    <div id="info-modal" class="info-modal" onclick="if(event.target===this)closeInfoModal()"><div class="info-modal-box"><button type="button" class="info-modal-x" onclick="closeInfoModal()" aria-label="Close">✕</button><div id="info-modal-body"></div></div></div>
     <div id="help-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
   <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;max-width:640px;width:90%;max-height:85vh;overflow-y:auto;padding:32px;position:relative;">
     <button onclick="document.getElementById('help-modal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:var(--text-tertiary);cursor:pointer;">✕</button>
