@@ -384,7 +384,7 @@
   <div class="login-card">
     <div class="login-title">EINBAU ID</div>
     <div class="login-sub">Your account doesn't have access to SCOUT</div>
-    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">Ask an admin to grant SCOUT access in HELM if you think this is a mistake.</div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">Ask your admin for SCOUT access if you think this is a mistake.</div>
     <button onclick="doScoutLogout()" class="btn btn-ghost" style="width:100%;justify-content:center;">Log out</button>
   </div>
 </div>
@@ -758,7 +758,8 @@ function appSwitcherLinks() {
     { name: 'LEDGER', url: 'https://lambwright.github.io/ledger/' },
     { name: 'CRM', url: 'https://lambwright.github.io/crm/' },
   ];
-  const helm = { name: 'HELM', url: 'https://lambwright.github.io/helm/' };
+  // Shown as "HELM" only to people who administer it; everyone else sees their settings page as "Settings".
+  const helm = { name: (scoutCurrentUser && scoutCurrentUser.helmName === 'HELM') ? 'HELM' : 'Settings', url: 'https://lambwright.github.io/helm/' };
   const raw = scoutCurrentUser && scoutCurrentUser.apps;
   const apps = (Array.isArray(raw) ? raw : []).map(a => String(a).toUpperCase());
   const allowed = name => apps.includes(name);
@@ -867,7 +868,7 @@ async function doScoutLogin(e) {
     const data = await res.json();
     if (!res.ok || !data.token) {
       errEl.textContent = data.error === 'rate_limited' ? 'Too many attempts — try again later.'
-        : data.error === 'no_app_access' ? 'Your account doesn’t have access to any apps yet. Ask an admin to grant you access in HELM.'
+        : data.error === 'no_app_access' ? 'Your account doesn’t have access to any apps yet. Ask your admin for access.'
         : 'Invalid username or password.';
       btn.disabled = false;
       return;
@@ -2278,7 +2279,7 @@ function checkSubmitGate(){
     const hasOverride = overrideReason.value.trim() && approver.value.trim() && rosterOk;
     const msgEl = document.getElementById('low-tier-msg');
     if (msgEl) msgEl.textContent = rosterOk ? 'This RFQ is a No Bid (below Tier C). Check "Push to bid board" above and complete the override fields below to submit anyway.'
-      : (rosterState === 'loading' ? 'Loading the approver list…' : 'Could not load the approver list from HELM, so an override cannot be submitted right now. Reload the page or ask your admin.');
+      : (rosterState === 'loading' ? 'Loading the approver list…' : 'Could not load the approver list, so an override cannot be submitted right now. Reload the page or ask your admin.');
     submitBtn.disabled = !(pushToBid.checked && hasOverride);
   } else {
     gateBox.style.display = 'none';
