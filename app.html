@@ -342,10 +342,11 @@
     .intake-status { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; margin-top: 6px; }
     .intake-status.error { color: var(--red); }
   </style>
+<script src="https://lambwright.github.io/helm/einbau-festive.js" defer></script>
 </head>
 <body>
 
-<header class="header">
+<header class="header" data-einbau-header>
   <div class="header-badge app-switcher" id="app-switcher-trigger" onclick="toggleAppSwitcher(event)">
     <span class="header-badge-name">Scout<span class="app-switcher-caret">▾</span></span>
     <span class="header-badge-sub">BID PREQUALIFIER</span>
@@ -848,6 +849,7 @@ function showScoutApp() {
   document.getElementById('scout-user-badge').style.display = 'flex';
   document.getElementById('scout-user-name').textContent = scoutCurrentUser ? scoutCurrentUser.displayName : '';
   initAppSwitcher(); // re-render now that we know who's logged in — affects the PUNCH link
+  startFestive();
   initScoutApp();
   initRfqRef(); // after the access-check above — a denied user should never trigger a mint call
 }
@@ -974,7 +976,7 @@ function onIntakeCompanyCreated(customer) {
 function showIntakePending(msg) {
   const el = document.getElementById('intake-status');
   el.className = 'intake-status';
-  el.innerHTML = `<span class="spinner"></span> ${msg}`;
+  showLoading(el, msg, 30);
   el.style.display = 'flex';
 }
 function showIntakeSuccess(msg) {
@@ -1270,7 +1272,7 @@ You are also available to help the estimator troubleshoot the SCOUT form itself.
 
   // The typing-indicator message is what replaceLastCopilotMessage swaps the
   // reply (or the failure notice) into — without it nothing ever displays.
-  addCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
+  copilotThinking(false);
   requestCopilotIntro();
 }
 
@@ -1298,7 +1300,7 @@ function showCopilotIntroFailure(reason) {
     `Copilot couldn't load: ${escapeHtml(reason)}<br><button type="button" id="${retryId}" class="btn btn-ghost" style="margin-top:6px;padding:3px 10px;font-size:11px;">Retry</button>`);
   const btn = document.getElementById(retryId);
   if (btn) btn.onclick = () => {
-    replaceLastCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
+    copilotThinking(true);
     requestCopilotIntro();
   };
 }
@@ -1374,7 +1376,7 @@ async function sendCopilotMessage() {
   }
 
   document.getElementById('copilot-send').disabled = true;
-  addCopilotMessage('assistant', '<span class="copilot-typing"><span></span><span></span><span></span></span>');
+  copilotThinking(false);
 
   try {
     // Validate history before sending
@@ -1413,6 +1415,16 @@ async function sendCopilotMessage() {
 
   document.getElementById('copilot-send').disabled = false;
   input.focus();
+}
+
+// The Copilot's "thinking" bubble: the shared loader (or the old three dots if it didn't load).
+// replaceLastCopilotMessage() later swaps the reply into this same bubble.
+function copilotThinking(replaceLast) {
+  const dots = '<span class="copilot-typing"><span></span><span></span><span></span></span>';
+  if (replaceLast) replaceLastCopilotMessage('assistant', dots); else addCopilotMessage('assistant', dots);
+  const msgs = document.getElementById('copilot-messages');
+  const bubble = msgs && msgs.querySelector('.copilot-msg.assistant:last-child .copilot-bubble');
+  if (bubble && window.EinbauFestive) showLoading(bubble, undefined, 30);
 }
 
 function addCopilotMessage(role, html) {
@@ -1529,6 +1541,39 @@ const data = await res.json();
   }
 }
 
+
+// ---- Seasonal decorations + the shared Claude-at-a-CRT loading animation (HELM's einbau-festive.js) ----
+// If that script didn't load, everything below quietly falls back to the plain spinner/text.
+function startFestive() {
+  const go = () => { try { if (window.EinbauFestive) window.EinbauFestive.init({ app: 'SCOUT' }); } catch (e) {} };
+  if (window.EinbauFestive) go(); else window.addEventListener('load', go, { once: true });
+}
+// Puts the shared loader into `el` (text only when the user needs specific information).
+// It removes itself when something else replaces el's content, so existing "done"/error
+// code that overwrites the status text needs no change.
+function showLoading(el, text, size, fallbackText) {
+  if (!el) return null;
+  const EF = window.EinbauFestive;
+  if (!EF || typeof EF.loader !== 'function') {
+    el.textContent = '';
+    const sp = document.createElement('span'); sp.className = 'spinner'; el.appendChild(sp);
+    el.appendChild(document.createTextNode(' ' + (text || fallbackText || 'Loading\u2026')));
+    return null;
+  }
+  el.textContent = '';
+  const l = EF.loader(el, { size: size || 36, text: text || undefined });
+  const node = el.lastElementChild;
+  if (window.MutationObserver && node) {
+    const mo = new MutationObserver(() => { if (!el.contains(node)) { try { l.remove(); } catch (e) {} mo.disconnect(); } });
+    mo.observe(el, { childList: true });
+  }
+  return l;
+}
+function loadingPhrase(fallback) {
+  try { if (window.EinbauFestive && window.EinbauFestive.phrase) return window.EinbauFestive.phrase(); } catch (e) {}
+  return fallback;
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -1619,7 +1664,7 @@ async function checkClientBlacklist(name, nsId) {
   applyClientFlags(null);
   setCard('win', 'idle');
   if (!name) return;
-  setCard('win', 'msg', 'Looking up CRM bid history\u2026');
+  setCard('win', 'loading');
   try {
     // ns_id lets CRM match on the NetSuite customer id first (name alone still works).
     const res = await fetch(`${CRM_LOOKUP_URL}?name=${encodeURIComponent(name)}${nsId ? '&ns_id=' + encodeURIComponent(nsId) : ''}`, {
@@ -1751,10 +1796,12 @@ const CARD_IDLE = {
 function setCard(which, mode, text) {
   const msg = document.getElementById(which + '-msg'), res = document.getElementById(which + '-result');
   if (!msg || !res) return;
+  if (mode !== 'loading' && msg.querySelector('.ef-loader, .spinner')) msg.textContent = ''; // stops a running loader
   const detailsBtn = document.getElementById(which + '-details-btn');
   if (detailsBtn) detailsBtn.style.display = mode === 'result' ? 'inline-flex' : 'none';
   if (mode !== 'result') { if (which === 'win') winStatsCache = null; else payResultCache = null; }
   if (mode === 'result') { msg.style.display = 'none'; res.style.display = 'block'; return; }
+  if (mode === 'loading') { res.style.display = 'none'; msg.style.display = 'block'; showLoading(msg, undefined, 34); return; }
   res.style.display = 'none'; msg.style.display = 'block';
   msg.textContent = mode === 'idle' ? CARD_IDLE[which] : text;
 }
@@ -1833,7 +1880,7 @@ async function loadClientPayment(nsId) {
   const sel = document.getElementById('crit-payment_record');
   if (sel && sel.dataset.auto) { sel.value = ''; delete sel.dataset.auto; updateScore(); }
   if (!nsId) { setCard('pay', 'msg', "This client isn't linked to a NetSuite customer yet, so there is no payment history to show."); return; }
-  setCard('pay', 'msg', 'Looking up payment history\u2026');
+  setCard('pay', 'loading');
   try {
     const res = await fetch('https://netsuite.ben-a90.workers.dev', {
       method: 'POST',
@@ -2011,7 +2058,7 @@ async function addNewClientContact() {
 function showProcoreSyncStatus(msg, kind) {
   const el = document.getElementById('procore-contact-sync-status');
   el.className = kind === 'error' ? 'intake-status error' : 'intake-status';
-  el.innerHTML = kind === 'pending' ? `<span class="spinner"></span> ${msg}` : msg;
+  if (kind === 'pending') showLoading(el, msg, 30); else el.innerHTML = msg;
   el.style.display = 'flex';
 }
 
@@ -2362,7 +2409,7 @@ async function parseRFQ(){
   const btn=document.getElementById('parse-btn');
   const status=document.getElementById('parse-status');
   btn.disabled=true;
-  status.innerHTML='<span class="spinner"></span> Parsing…';
+  showLoading(status, undefined, 30, 'Parsing…'); // Claude at the CRT, seasonal lines
   try{
     const response=await fetch(PARSE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email_text:email,client_name:client})});
     const text=await response.text();
@@ -2547,7 +2594,7 @@ async function submitRFQ(){
   const btn=document.getElementById('submit-btn');
   const status=document.getElementById('submit-status');
   btn.disabled=true;
-  status.innerHTML='<span class="spinner"></span> Submitting…';
+  showLoading(status, 'Submitting…', 30);
   const disqTriggered=DISQUALIFIERS.filter((_,i)=>document.getElementById('disq-'+i)?.checked);
   const scoringValues={};const scoringLabels={};
   CRITERIA.forEach(c=>{
@@ -2712,7 +2759,7 @@ async function declineRFQ(){
   const btn=document.getElementById('decline-btn');
   const status=document.getElementById('submit-status');
   btn.disabled=true;
-  status.innerHTML='<span class="spinner"></span> Saving decline…';
+  showLoading(status, 'Saving decline…', 30);
 
   const disqTriggered=DISQUALIFIERS.filter((_,i)=>document.getElementById('disq-'+i)?.checked);
   const scoringValues={};
@@ -3034,6 +3081,7 @@ function initScoutApp(){
   buildScoringSection();
   buildRuler();
   updateScore();
+  showLoading(document.querySelector('#client-dropdown .combobox-loading'), undefined, 30);
   setTimeout(loadClients, 300);
   initEstimatorField();
   loadScoutRoster();
@@ -3083,7 +3131,7 @@ function rebuildEstimatorPicker(keepSelection) {
   // Only people whose SCOUT job role is Estimator can use the picker.
   sel.disabled = !(scoutCurrentUser?.appJobRoles?.SCOUT === 'estimator' && list.length);
   if (note) {
-    const msg = rosterState === 'loading' ? 'Loading estimators…'
+    const msg = rosterState === 'loading' ? loadingPhrase('Loading estimators…')
       : rosterState === 'error' ? 'Could not load the estimator list — reload the page or ask your admin.'
       : !list.length ? 'No estimators are set up yet — ask your admin.' : '';
     note.style.display = msg ? 'block' : 'none'; note.textContent = msg;
