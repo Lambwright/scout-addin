@@ -817,6 +817,7 @@ async function verifyScoutSession(token) {
 }
 
 function showScoutLogin() {
+  startFestive(); // decorate the login page too
   document.getElementById('screen-login').style.display = 'flex';
   document.getElementById('screen-access-denied').style.display = 'none';
   document.getElementById('screen-app').style.display = 'none';
@@ -824,6 +825,7 @@ function showScoutLogin() {
 }
 
 function showScoutAccessDenied() {
+  startFestive();
   document.getElementById('screen-login').style.display = 'none';
   document.getElementById('screen-access-denied').style.display = 'flex';
   document.getElementById('screen-app').style.display = 'none';
