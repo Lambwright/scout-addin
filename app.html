@@ -464,7 +464,7 @@
       <div class="toggle-row" id="push-toggle-row">
         <input type="checkbox" class="toggle" id="push-to-bid" onchange="updateScore()">
         <label class="toggle-label" for="push-to-bid">Push to bid board</label>
-        <span class="toggle-hint">Auto-checked at Tier A or B — override manually</span>
+        <span class="toggle-hint">Auto-checked at Tier A, B or C — override manually</span>
       </div>
 
       <!-- PROJECT NAME — prominent, standalone -->
@@ -2383,14 +2383,14 @@ function updateScore(){
     let tier,cls,rec;
     if(totalScaled>=TIER_A_MIN){tier='Tier A';cls='tier-a';rec='High priority — submit bid. Assign estimator and flag for leadership.';}
     else if(totalScaled>=TIER_B_MIN){tier='Tier B';cls='tier-b';rec='Medium priority — qualify further before committing estimating resources.';}
-    else if(totalScaled>=TIER_C_MIN){tier='Tier C';cls='tier-c';rec='Low priority — monitor only. Do not assign estimating without leadership review.';}
+    else if(totalScaled>=TIER_C_MIN){tier='Tier C';cls='tier-c';rec='Lower priority — submit to the bid board and estimate as capacity allows.';}
     else if(clientFlags.priority&&totalScaled===0){tier='No score yet';cls='tier-no';rec='Priority client \u2014 proceed with the estimate regardless of score. Fill in the scoring criteria below.';}
     else if(clientFlags.priority){tier='Tier C';cls='tier-c';rec='Priority client \u2014 proceed with the estimate regardless of score. Scored '+totalScaled+', below the Tier C floor of '+TIER_C_MIN+'; the real score is still recorded.';}
     else{tier='No bid';cls='tier-no';rec='No bid — decline or defer. Do not assign estimating resources.';}
     tierEl.className='tier-badge '+cls;
     tierEl.textContent=tier+(clientFlags.priority?' \u{1F525} Priority':'');
     recEl.textContent=rec;
-    const autoPush=totalScaled>=TIER_B_MIN&&!disqTriggered;
+    const autoPush=totalScaled>=TIER_C_MIN&&!disqTriggered; // Tier C goes to the bid board too; only No Bid is held back
     const pushCb=document.getElementById('push-to-bid');
     if(!pushCb.dataset.touched) pushCb.checked=autoPush;
   }
@@ -2733,7 +2733,7 @@ const nsId = window._lastNSOpportunityId;
 
   const allOk = excelOk && nsOk && procoreOk;
   if(allOk){
-    status.textContent = payload.push_to_bid ? '✓ Submitted — Excel, NetSuite & Procore.' : '✓ Submitted — Excel & NetSuite.';
+    status.textContent = payload.push_to_bid ? '✓ Submitted — Excel, NetSuite & Procore.' : '✓ Submitted to Excel & NetSuite — NOT pushed to the bid board (Push to bid board was off).';
   } else {
     status.textContent = '⚠ Some destinations failed — see indicators below.';
   }
