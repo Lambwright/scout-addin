@@ -1923,7 +1923,7 @@ function selectClient(name, nsId, procoreId) {
       body: JSON.stringify({
         method: 'POST',
         path: '/query/v1/suiteql',
-        data: { q: `SELECT custrecord_r_it_entity_pc_id FROM customrecord_r_it_entity_pc_ids WHERE custrecord_r_it_entity_record = '${nsId}' AND custrecord_r_it_link LIKE '%/company/directory/vendors/%'` }
+        data: { q: `SELECT custrecord_r_it_entity_pc_id FROM customrecord_r_it_entity_pc_ids WHERE custrecord_r_it_entity_record = '${nsId}' AND (custrecord_r_it_link IS NULL OR custrecord_r_it_link LIKE '%/company/directory/vendors/%')` }
       })
     })
     .then(r => r.json())
@@ -2068,7 +2068,7 @@ async function findProcoreVendorIdForCustomer(nsCustomerId) {
   const res = await fetch('https://netsuite.ben-a90.workers.dev', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
     body: JSON.stringify({ method: 'POST', path: '/query/v1/suiteql',
-      data: { q: `SELECT custrecord_r_it_entity_pc_id FROM customrecord_r_it_entity_pc_ids WHERE custrecord_r_it_entity_record = '${nsCustomerId}' AND custrecord_r_it_link LIKE '%/company/directory/vendors/%'` } })
+      data: { q: `SELECT custrecord_r_it_entity_pc_id FROM customrecord_r_it_entity_pc_ids WHERE custrecord_r_it_entity_record = '${nsCustomerId}' AND (custrecord_r_it_link IS NULL OR custrecord_r_it_link LIKE '%/company/directory/vendors/%')` } })
   });
   const data = await res.json();
   const item = data.items && data.items[0];
