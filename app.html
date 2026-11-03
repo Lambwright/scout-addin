@@ -2001,6 +2001,42 @@ function checkNewContactCandidate() {
 const PC_COMPANY_ID = '1';
 const PROCORE_COMPANY_ID = '562949953508586';
 
+// The estimators' standard estimate (terms, scope text, inclusions, exclusions)
+// lives on this bid board project; edit it in Procore and SCOUT follows. The
+// Bid Board create call has no template option, so SCOUT copies it onto each
+// new bid's blank estimate itself.
+const STANDARD_ESTIMATE_BID_ID = '562949956268711';
+async function procoreCall(method, path, data, contentType) {
+  const res = await fetch('https://procore.ben-a90.workers.dev', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + scoutAuthToken },
+    body: JSON.stringify({ method, path, data, contentType })
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body) throw new Error('Procore ' + method + ' ' + res.status);
+  return body;
+}
+async function applyStandardEstimateTerms(bidId) {
+  try {
+    const std = (await procoreCall('GET', `/estimating/bid_board_projects/${STANDARD_ESTIMATE_BID_ID}/proposals`)).data?.[0];
+    if (!std || !(std.inclusions?.length || std.exclusions?.length || std.notes || std.scope_of_work)) throw new Error('standard estimate is empty or missing');
+    let target = null;
+    for (let i = 0; i < 4 && !target; i++) {
+      if (i) await new Promise(r => setTimeout(r, 2000 * i));
+      target = (await procoreCall('GET', `/estimating/bid_board_projects/${bidId}/proposals`)).data?.[0];
+    }
+    if (!target) throw new Error('the new bid has no estimate yet');
+    if (target.inclusions?.length || target.exclusions?.length || target.notes || target.scope_of_work) return { ok: true, skipped: true };
+    await procoreCall('PATCH', `/estimating/bid_board_projects/${bidId}/proposals/${target.id}`,
+      { notes: std.notes, scope_of_work: std.scope_of_work, inclusions: std.inclusions, exclusions: std.exclusions },
+      'application/merge-patch+json');
+    return { ok: true };
+  } catch (e) {
+    console.error('Standard estimate terms failed:', e);
+    return { ok: false, detail: e.message };
+  }
+}
+const STANDARD_TERMS_WARNING = '⚠ The standard estimate terms were NOT applied in Procore — add them manually or tell an admin.';
+
 async function addNewClientContact() {
   const btn = document.querySelector('#add-contact-action button');
   if (!btn || !selectedClientNSID) return;
@@ -2687,6 +2723,7 @@ async function submitRFQ(){
   }
 const nsId = window._lastNSOpportunityId;
   const procoreId = window._lastProcoreBidId;
+  const termsRes = procoreRes.value?.procore_bid_id ? await applyStandardEstimateTerms(procoreRes.value.procore_bid_id) : null;
 
   if(nsId) document.getElementById('id-netsuite').textContent = `NS: ${nsId}`;
   if(procoreId) document.getElementById('id-procore').innerHTML = `<a href="https://us02.procore.com/webclients/host/companies/562949953508586/tools/bid-board/project/${procoreId}/details" target="_blank" style="color:var(--green);text-decoration:none;font-size:11px;">↗ Open in Procore</a>`;
@@ -2733,6 +2770,7 @@ const nsId = window._lastNSOpportunityId;
   const allOk = excelOk && nsOk && procoreOk;
   if(allOk){
     status.textContent = payload.push_to_bid ? '✓ Submitted — Excel, NetSuite & Procore.' : '✓ Submitted to Excel & NetSuite — NOT pushed to the bid board (Push to bid board was off).';
+    if(termsRes && !termsRes.ok) status.textContent += ' ' + STANDARD_TERMS_WARNING;
   } else {
     status.textContent = '⚠ Some destinations failed — see indicators below.';
   }
@@ -2955,6 +2993,9 @@ async function retryDest(dest) {
         window._lastProcoreBidId = data.procore_bid_id;
         document.getElementById('id-procore').innerHTML = `<a href="https://us02.procore.com/562949953508586/company/estimating/bid_board/projects/${data.procore_bid_id}" target="_blank" style="color:var(--green);text-decoration:none;font-size:11px;">↗ Open in Procore</a>`;        document.getElementById('record-ids').style.display = 'flex';
         console.log('Procore Bid ID (retry):', data.procore_bid_id);
+        applyStandardEstimateTerms(data.procore_bid_id).then(t => {
+          if(!t.ok) { const s = document.getElementById('submit-status'); if(s) s.textContent = STANDARD_TERMS_WARNING; }
+        });
         if(window._lastNSOpportunityId) {
           fetch(LINK_RECORDS_URL, {
             method: 'POST',
